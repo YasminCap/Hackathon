@@ -29,6 +29,18 @@ python teste_mqtt.py     # teste de ida e volta no broker público
   cano rompido), consertar, abrir/fechar registro, ir para a madrugada, adiantar o relógio.
 - Sem `.env`, usa o broker público `broker.hivemq.com:1883`.
 
+## Backend (API + gravação no SQLite)
+
+Em outro terminal, com o simulador rodando:
+
+```bash
+.venv\Scripts\python.exe -m backend.main
+```
+
+- Recebe `hidrometro/+/leitura`, valida (só prédios do cadastro, contrato oficial) e grava em `olhodagua.db`.
+- API em http://127.0.0.1:8000 — documentação interativa em http://127.0.0.1:8000/docs.
+- `POST /api/predios/<id>/comando` com `{"acao": "fechar_registro"}` fecha o registro pelo MQTT.
+
 ## Estrutura
 
 ```
