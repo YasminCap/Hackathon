@@ -4,7 +4,8 @@ main.py — API do Olho d'Água (FastAPI).
 Ao subir:
   1. cria/abre o banco SQLite;
   2. conecta no MQTT e começa a gravar as leituras dos hidrômetros;
-  3. expõe a API JSON abaixo e serve o painel (pasta painel/) em http://127.0.0.1:8000
+  3. liga a detecção (a cada 2 s) e o bot do Telegram (se houver TELEGRAM_TOKEN);
+  4. expõe a API JSON abaixo e serve o painel (pasta painel/) em http://127.0.0.1:8000
 
 Rotas:
   GET  /api/saude                         — MQTT conectado? quantas leituras?
@@ -13,6 +14,7 @@ Rotas:
   GET  /api/predios/{id}/leituras?limite= — série recente (gráfico de vazão)
   GET  /api/predios/{id}/consumo_horario?horas= — litros por hora (horário de Londrina)
   POST /api/predios/{id}/comando          — fechar/abrir registro via MQTT
+  GET  /api/alertas                       — alertas de vazamento/consumo excessivo
   GET  /api/comandos                      — últimos comandos enviados
   Documentação interativa: http://127.0.0.1:8000/docs
 
@@ -22,6 +24,7 @@ Como rodar (na raiz do projeto):
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -33,8 +36,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import db
-from .config import PASTA_PAINEL, SEGUNDOS_ONLINE, carregar_predios
+from .config import MODO_DEMO, PASTA_PAINEL, SEGUNDOS_ONLINE, carregar_predios
+from .deteccao import Detector
 from .mqtt_cliente import ClienteMQTT
+from .telegram_bot import NotificadorTelegram
 
 # Terminal do Windows: garante acentos nos logs
 if hasattr(sys.stdout, "reconfigure"):
@@ -44,14 +49,38 @@ PREDIOS = carregar_predios()  # cadastro SIMULADO (dados/escolas.json)
 IDS_ATIVOS = {pid for pid, p in PREDIOS.items() if p["ativo"]}
 
 mqtt_cliente = ClienteMQTT(IDS_ATIVOS)
+detector = Detector(PREDIOS)
+notificador = NotificadorTelegram(PREDIOS, mqtt_cliente.enviar_comando)
+
+INTERVALO_DETECCAO_S = 2
+
+
+async def laco_deteccao() -> None:
+    """A cada 2 s: avalia as regras (numa thread, por causa do SQLite) e avisa no Telegram."""
+    while True:
+        try:
+            eventos = await asyncio.to_thread(detector.avaliar)
+            for evento in eventos:
+                await notificador.notificar(evento)
+        except Exception as erro:  # o laço não pode morrer
+            print(f"[DETECÇÃO] Erro: {erro!r}")
+        await asyncio.sleep(INTERVALO_DETECCAO_S)
 
 
 @asynccontextmanager
 async def ciclo_de_vida(app: FastAPI):
     db.inicializar()
+    if not db.media_por_faixa(next(iter(IDS_ATIVOS))):
+        print("[AVISO] Sem histórico de consumo: a regra de consumo excessivo fica desligada. "
+              "Rode: .venv\\Scripts\\python.exe simulador\\gerar_historico.py")
     mqtt_cliente.iniciar()
+    await notificador.iniciar()
+    tarefa = asyncio.create_task(laco_deteccao())
+    print(f"[DETECÇÃO] Ligada{' (MODO_DEMO: limites curtos)' if MODO_DEMO else ''}")
     print("[API] Pronta em http://127.0.0.1:8000  (docs em /docs)")
     yield
+    tarefa.cancel()
+    await notificador.parar()
     mqtt_cliente.parar()
 
 
@@ -90,6 +119,7 @@ def saude():
 def listar_predios():
     ultimas = db.ultimas_leituras()
     registros = db.estado_registros()
+    alertas = {a["dispositivo"]: a for a in db.alertas_recentes(50) if a["status"] == "ativo"}
     resposta = []
     for pid, p in PREDIOS.items():
         u = ultimas.get(pid)
@@ -102,6 +132,7 @@ def listar_predios():
             "vazao_lpm": u["vazao_lpm"] if online else None,
             "total_litros": u["total_litros"] if u else None,
             "ultima_leitura": u["ts_local"] if u else None,  # horário de Londrina (simulado)
+            "alerta": alertas.get(pid),                       # alerta ativo ou None
         })
     return {"aviso": "DADOS SIMULADOS", "predios": resposta}
 
@@ -118,6 +149,8 @@ def resumo():
         "predios_online": len(online),
         "vazao_total_lpm": round(sum(p["vazao_lpm"] or 0 for p in online), 2),
         "registros_fechados": sum(1 for p in predios if p["registro"] == "fechado"),
+        "alertas_ativos": sum(1 for p in predios if p["alerta"]),
+        "telegram_ativo": notificador.ativo,
         "relogio_simulado": max(horarios) if horarios else None,
         "mqtt_conectado": mqtt_cliente.conectado,
     }
@@ -150,6 +183,15 @@ def enviar_comando(pid: str, comando: Comando):
         return mqtt_cliente.enviar_comando(pid, comando.acao, comando.autorizado_por)
     except ConnectionError as erro:
         raise HTTPException(503, str(erro)) from erro
+
+
+@app.get("/api/alertas")
+def listar_alertas(limite: int = Query(30, ge=1, le=200)):
+    """Alertas ativos primeiro, depois os mais recentes."""
+    alertas = db.alertas_recentes(limite)
+    for a in alertas:
+        a["nome"] = PREDIOS.get(a["dispositivo"], {}).get("nome", a["dispositivo"])
+    return {"aviso": "DADOS SIMULADOS", "alertas": alertas}
 
 
 @app.get("/api/comandos")

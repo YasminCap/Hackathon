@@ -268,11 +268,11 @@ class Simulador:
         print(f"[RELÓGIO] Modo madrugada: {data_legivel(self.agora, '%d/%m %H:%M')}")
 
     # ------------------------------------------------------------------- ciclo
-    def _vazao_do_predio(self, p: Predio) -> float:
+    def _vazao_do_predio(self, p: Predio, instante: datetime) -> float:
         """Uso normal (com ruído) + vazamento ativo; zero se o registro estiver fechado."""
         if not p.registro_aberto:
             return 0.0
-        esperada = p.vazao_esperada(self.agora)
+        esperada = p.vazao_esperada(instante)
         if esperada > 0:
             normal = esperada * random.uniform(0.6, 1.4)
         elif random.random() < 0.01:
@@ -288,9 +288,12 @@ class Simulador:
             minutos_sim = self.intervalo_s * self.fator / 60
             self.agora += timedelta(minutes=minutos_sim)
             carimbo = self.agora.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            # a leitura cobre o intervalo que acabou de passar: usa a vazão do MEIO dele
+            # (medir no fim jogaria 2 min de uso para antes da abertura do prédio)
+            meio_do_intervalo = self.agora - timedelta(minutes=minutos_sim / 2)
             mensagens = []
             for p in self.predios.values():
-                p.vazao_lpm = self._vazao_do_predio(p)
+                p.vazao_lpm = self._vazao_do_predio(p, meio_do_intervalo)
                 litros = round(p.vazao_lpm * minutos_sim, 2)
                 p.total_litros = round(p.total_litros + litros, 2)
                 mensagens.append((p.id, {

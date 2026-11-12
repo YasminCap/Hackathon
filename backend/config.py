@@ -34,6 +34,28 @@ PASTA_PAINEL = RAIZ / "painel"
 # Prédio é considerado "online" se mandou leitura nos últimos N segundos REAIS
 SEGUNDOS_ONLINE = 10
 
+# --- Telegram ---
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN") or None
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID") or None
+
+# --- Detecção (tempos em minutos SIMULADOS) ---
+MODO_DEMO = (os.getenv("MODO_DEMO") or "0") == "1"
+
+# Fora do horário: fluxo contínuo > 0 por mais que isso → vazamento
+LIMITE_FLUXO_CONTINUO_MIN = 10 if MODO_DEMO else 30
+# No horário: janela usada para comparar o consumo com a média da mesma faixa
+JANELA_EXCESSO_MIN = 20 if MODO_DEMO else 60
+# Consumo da janela acima de FATOR × média da faixa → consumo excessivo
+FATOR_EXCESSO = 2.0
+# E o excesso precisa ser de pelo menos isso (L/min) — evita alarme quando a média é quase zero
+MIN_EXCESSO_LPM = 2.0
+# Abaixo disso (× média) o consumo excessivo é considerado resolvido (histerese)
+FATOR_EXCESSO_RESOLVIDO = 1.3
+# Depois de resolvido, espera isso antes de abrir outro alerta no mesmo prédio
+COOLDOWN_MIN = 15 if MODO_DEMO else 120
+# Buraco entre leituras maior que isso quebra a sequência (ex.: relógio adiantado)
+LACUNA_MAX_MIN = 15
+
 
 def carregar_predios() -> dict[str, dict]:
     """Cadastro de prédios (dados/escolas.json — SIMULADO), indexado por id."""

@@ -14,7 +14,8 @@ const LONDRINA = [-23.31, -51.16];
 
 // Cores por situação (iguais à legenda do mapa)
 const SITUACOES = {
-  uso:      { cor: "#10b981", texto: "em uso" },
+  alerta:   { cor: "#dc2626", texto: "ALERTA" },
+  uso:     { cor: "#10b981", texto: "em uso" },
   parado:   { cor: "#7dd3fc", texto: "parado" },
   fora:     { cor: "#f97316", texto: "fluxo fora do horário" },
   fechado:  { cor: "#1e40af", texto: "registro fechado" },
@@ -55,10 +56,12 @@ function emHorario(predio) {
   return agora >= ini && agora < fim;
 }
 
-/** Situação visual do prédio. "Fora do horário" é só um destaque — a detecção vem no passo 5. */
+/** Situação visual do prédio. "alerta" vem da detecção do backend; "fora" é só um destaque
+ *  de vazão fora do horário que ainda não virou alerta (pode ser uso esporádico). */
 function situacao(p) {
   if (!p.ativo) return "inativo";
   if (!p.online) return "semsinal";
+  if (p.alerta) return "alerta";
   if (p.registro === "fechado") return "fechado";
   if (p.vazao_lpm > 0 && !emHorario(p)) return "fora";
   return p.vazao_lpm > 0 ? "uso" : "parado";
@@ -126,9 +129,46 @@ function atualizarLista(predios) {
     item.detalhe.textContent = `${p.tipo.toUpperCase()} · ${p.regiao || ""} · ${SITUACOES[sit].texto}`;
     item.vazao.textContent = p.vazao_lpm != null ? `${fmt(p.vazao_lpm, 2)} L/min` : "—";
     item.vazao.classList.toggle("text-orange-600", sit === "fora");
-    item.vazao.classList.toggle("font-semibold", sit === "fora");
+    item.vazao.classList.toggle("text-red-600", sit === "alerta");
+    item.vazao.classList.toggle("font-semibold", sit === "fora" || sit === "alerta");
   }
 }
+
+// -------------------------------------------------------------------- alertas
+function hora(ts) {  // '2026-11-13 01:58:00' → '13/11 01:58'
+  return ts ? `${ts.slice(8, 10)}/${ts.slice(5, 7)} ${ts.slice(11, 16)}` : "";
+}
+
+let assinaturaAlertas = "";  // só redesenha a lista quando algo mudou
+
+function atualizarAlertas(alertas) {
+  const assinatura = alertas.map(a => a.id + a.status).join("|");
+  if (assinatura === assinaturaAlertas) return;
+  assinaturaAlertas = assinatura;
+  const ul = document.getElementById("alertas");
+  if (!alertas.length) {
+    ul.innerHTML = `<li class="px-3 py-2 text-slate-500">Nenhum alerta até agora.</li>`;
+    return;
+  }
+  ul.innerHTML = alertas.map(a => {
+    const ativo = a.status === "ativo";
+    const icone = !ativo ? "✅" : a.tipo === "vazamento" ? "🚨" : "⚠️";
+    const titulo = a.tipo === "vazamento" ? "Vazamento provável" : "Consumo excessivo";
+    const fim = ativo
+      ? `<span class="text-red-600 font-semibold">ATIVO</span> desde ${hora(a.inicio_sim)}`
+      : `resolvido ${hora(a.resolvido_sim)} (${esc(a.motivo_resolucao)}) · perda ≈ ${fmt(a.litros_perdidos, 0)} L`;
+    return `<li class="px-3 py-2 ${ativo ? "bg-red-50" : ""} cursor-pointer" data-predio="${esc(a.dispositivo)}">
+      <div>${icone} <b>${titulo}</b> — ${esc(a.nome)} · ${fmt(a.vazao_estimada, 1)} L/min</div>
+      <div class="text-xs text-slate-600">Provável causa: ${esc(a.provavel_causa)} · ${fim}</div>
+    </li>`;
+  }).join("");
+}
+
+// clique num alerta abre o prédio (delegação: a lista é redesenhada quando muda)
+document.getElementById("alertas").addEventListener("click", e => {
+  const li = e.target.closest("[data-predio]");
+  if (li) selecionar(li.dataset.predio);
+});
 
 // ------------------------------------------------------------------- gráficos
 const opcoesBase = {
@@ -211,8 +251,13 @@ async function comando(acao) {
 // ------------------------------------------------------------- ciclo principal
 async function ciclo() {
   try {
-    const [resumo, dados] = await Promise.all([buscar("/api/resumo"), buscar("/api/predios")]);
+    const [resumo, dados, alertas] = await Promise.all([
+      buscar("/api/resumo"), buscar("/api/predios"), buscar("/api/alertas?limite=20"),
+    ]);
     ultimosPredios = dados.predios;
+    atualizarAlertas(alertas.alertas);
+    document.getElementById("telegram").textContent =
+      resumo.telegram_ativo ? "📱 Telegram ligado" : "📱 Telegram desligado (alertas só no painel e no terminal)";
 
     document.getElementById("relogio").textContent = resumo.relogio_simulado
       ? "🕒 " + resumo.relogio_simulado.slice(8, 10) + "/" + resumo.relogio_simulado.slice(5, 7) +
@@ -221,10 +266,9 @@ async function ciclo() {
     document.getElementById("conexao").textContent = resumo.mqtt_conectado ? "🟢 MQTT conectado" : "🔴 MQTT desconectado";
     document.getElementById("c-online").textContent = `${resumo.predios_online} / ${resumo.predios_ativos}`;
     document.getElementById("c-vazao").textContent = `${fmt(resumo.vazao_total_lpm)} L/min`;
-    const fora = ultimosPredios.filter(p => situacao(p) === "fora").length;
-    const cFora = document.getElementById("c-fora");
-    cFora.textContent = fora;
-    cFora.className = "text-2xl font-bold " + (fora ? "text-orange-600" : "");
+    const cAlertas = document.getElementById("c-alertas");
+    cAlertas.textContent = resumo.alertas_ativos;
+    cAlertas.className = "text-2xl font-bold " + (resumo.alertas_ativos ? "text-red-600" : "");
     document.getElementById("c-fechados").textContent = resumo.registros_fechados;
 
     if (!selecionado) {

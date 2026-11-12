@@ -41,6 +41,34 @@ Em outro terminal, com o simulador rodando:
 - API em http://127.0.0.1:8000 — documentação interativa em http://127.0.0.1:8000/docs.
 - `POST /api/predios/<id>/comando` com `{"acao": "fechar_registro"}` fecha o registro pelo MQTT.
 
+## Detecção e alertas no Telegram
+
+O backend avalia as leituras a cada 2 s (no relógio simulado):
+
+- **Vazamento** — fora do horário de uso, fluxo contínuo > 0 por mais de 30 min (10 com `MODO_DEMO=1`).
+- **Consumo excessivo** — no horário de uso, litros da última hora > 2× a média da mesma faixa
+  de horário da própria escola (janela de 20 min com `MODO_DEMO=1`).
+- Causa apresentada como **provável** (pela vazão), 1 alerta ativo por prédio, aviso de
+  **resolvido** quando o fluxo zera e cooldown antes de um novo alerta.
+
+A média por faixa de horário vem de um histórico **simulado** de 4 semanas. Gere uma vez:
+
+```bash
+.venv\Scripts\python.exe simulador\gerar_historico.py
+```
+
+### Configurar o bot do Telegram
+
+1. No Telegram, fale com **@BotFather** → `/newbot` → copie o token.
+2. Copie `.env.example` para `.env` e cole o token em `TELEGRAM_TOKEN=`.
+3. Suba o backend e mande `/start` para o seu bot: ele responde com o **id do chat**.
+   (Para um grupo da manutenção, adicione o bot ao grupo e mande `/start` lá.)
+4. Coloque esse número em `TELEGRAM_CHAT_ID=` e reinicie o backend.
+
+Os alertas chegam com os botões **🔒 Fechar registro** / **🔓 Reabrir registro**, que publicam
+o comando MQTT com `autorizado_por: telegram:<user_id>`. Só o chat configurado pode usar os
+botões. `/status` lista os alertas ativos. Sem token, os alertas aparecem no painel e no terminal.
+
 ## Painel da prefeitura
 
 Com simulador e backend rodando, abra **http://127.0.0.1:8000**:
