@@ -1,0 +1,17 @@
+# Olho d'Água — dependências do projeto (Python 3.11+)
+
+# MQTT (API de callbacks VERSION2)
+paho-mqtt>=2.1,<3
+
+# API + servidor do painel
+fastapi>=0.115
+uvicorn[standard]>=0.30
+
+# Credenciais e configurações via .env
+python-dotenv>=1.0
+
+# Bot de alertas com botões "Fechar registro" / "Reabrir registro"
+python-telegram-bot>=21,<23
+
+# Laudo PDF do auditor de contas
+reportlab>=4.2

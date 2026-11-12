@@ -1,0 +1,27 @@
+# Credenciais — NUNCA versionar
+.env
+
+# Ambiente virtual
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Banco local (gerado em tempo de execução)
+*.db
+*.sqlite
+*.sqlite3
+
+# Laudos gerados
+laudos/
+*.pdf
+
+# Editor / sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
