@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Olho d'Água — Painel</title>
+<!--
+  Painel da Prefeitura: mapa dos prédios + vazão em tempo real.
+  HTML + JS puro, Tailwind via CDN, Chart.js e Leaflet. Atualiza por polling a cada 2 s (app.js).
+  Todos os dados exibidos são SIMULADOS.
+-->
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  #mapa { height: 420px; }
+  .leaflet-container { font: inherit; }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+
+  <!-- Cabeçalho -->
+  <header class="bg-sky-800 text-white">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+      <h1 class="text-xl font-bold">💧 Olho d'Água</h1>
+      <span class="text-sky-100 text-sm">Água das escolas municipais e CMEIs de Londrina</span>
+      <span class="bg-amber-300 text-amber-950 text-xs font-semibold px-2 py-1 rounded">DADOS SIMULADOS</span>
+      <div class="ml-auto flex items-center gap-4 text-sm">
+        <span id="relogio" title="Relógio simulado (horário de Londrina)">🕒 --</span>
+        <span id="conexao">⚪ conectando...</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-4 space-y-4">
+
+    <!-- Cartões de resumo -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-white rounded-lg shadow p-3">
+        <div class="text-xs text-slate-500">Prédios online</div>
+        <div id="c-online" class="text-2xl font-bold">--</div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-3">
+        <div class="text-xs text-slate-500">Vazão total agora</div>
+        <div id="c-vazao" class="text-2xl font-bold">--</div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-3">
+        <div class="text-xs text-slate-500">Fluxo fora do horário</div>
+        <div id="c-fora" class="text-2xl font-bold">--</div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-3">
+        <div class="text-xs text-slate-500">Registros fechados</div>
+        <div id="c-fechados" class="text-2xl font-bold">--</div>
+      </div>
+    </section>
+
+    <!-- Mapa + lista -->
+    <section class="grid lg:grid-cols-5 gap-4">
+      <div class="lg:col-span-3 bg-white rounded-lg shadow overflow-hidden">
+        <div id="mapa"></div>
+        <div class="px-3 py-2 text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
+          <span><span class="inline-block w-3 h-3 rounded-full bg-emerald-500 align-middle"></span> em uso</span>
+          <span><span class="inline-block w-3 h-3 rounded-full bg-sky-300 align-middle"></span> parado</span>
+          <span><span class="inline-block w-3 h-3 rounded-full bg-orange-500 align-middle"></span> fluxo fora do horário</span>
+          <span><span class="inline-block w-3 h-3 rounded-full bg-blue-800 align-middle"></span> registro fechado</span>
+          <span><span class="inline-block w-3 h-3 rounded-full bg-slate-400 align-middle"></span> sem sinal / desativado</span>
+        </div>
+      </div>
+      <div class="lg:col-span-2 bg-white rounded-lg shadow overflow-hidden">
+        <h2 class="px-3 py-2 font-semibold border-b">Prédios</h2>
+        <ul id="lista" class="divide-y max-h-[460px] overflow-y-auto"></ul>
+      </div>
+    </section>
+
+    <!-- Gráficos do prédio selecionado -->
+    <section class="bg-white rounded-lg shadow p-3">
+      <div class="flex flex-wrap items-center gap-3 mb-2">
+        <h2 class="font-semibold" id="titulo-predio">Selecione um prédio</h2>
+        <span id="status-predio" class="text-xs"></span>
+        <div class="ml-auto" id="acoes-predio"></div>
+      </div>
+      <div class="grid lg:grid-cols-2 gap-4">
+        <div>
+          <div class="text-xs text-slate-500 mb-1">Vazão (L/min) — últimas 6 h simuladas</div>
+          <div class="h-64"><canvas id="grafico-vazao"></canvas></div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-500 mb-1">Consumo por hora (litros) — últimas 24 h simuladas</div>
+          <div class="h-64"><canvas id="grafico-horas"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="text-xs text-slate-500 pb-4">
+      Protótipo do SmartCities Hackathon Londrina 2026. Hidrômetros, nomes e consumos são simulados.
+    </footer>
+  </main>
+
+<script src="app.js"></script>
+</body>
+</html>

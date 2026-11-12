@@ -41,6 +41,13 @@ Em outro terminal, com o simulador rodando:
 - API em http://127.0.0.1:8000 — documentação interativa em http://127.0.0.1:8000/docs.
 - `POST /api/predios/<id>/comando` com `{"acao": "fechar_registro"}` fecha o registro pelo MQTT.
 
+## Painel da prefeitura
+
+Com simulador e backend rodando, abra **http://127.0.0.1:8000**:
+mapa dos prédios (cor = situação, tamanho = vazão), lista lateral, gráfico de vazão
+das últimas 6 h simuladas, consumo por hora e botão "Fechar/Reabrir registro".
+Atualiza sozinho a cada 2 s.
+
 ## Estrutura
 
 ```
