@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador Olho d'Água</title>
+<!-- Painel de controle do SIMULADOR (não é o painel da prefeitura).
+     Serve para injetar vazamentos e mexer no relógio durante a demonstração. -->
+<style>
+  body { font-family: system-ui, sans-serif; margin: 16px; background: #f4f7fa; color: #1b2733; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .aviso { background: #fff3cd; border: 1px solid #e6c65c; padding: 6px 10px; border-radius: 6px; display: inline-block; font-size: .85rem; }
+  .barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+  .relogio { font-size: 1.4rem; font-weight: 700; margin-right: 12px; }
+  button { border: 1px solid #9fb3c8; background: #fff; border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: .85rem; }
+  button:hover { background: #e8f0f8; }
+  button.perigo { border-color: #d9534f; color: #b52b27; }
+  button.ok { border-color: #3c9a5f; color: #24723f; }
+  table { border-collapse: collapse; width: 100%; background: #fff; border-radius: 8px; overflow: hidden; }
+  th, td { padding: 8px; border-bottom: 1px solid #e3e9ef; text-align: left; font-size: .9rem; }
+  th { background: #e8eef4; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tag { padding: 2px 6px; border-radius: 4px; font-size: .78rem; }
+  .vaz { background: #fde2e1; color: #a12622; }
+  .fech { background: #dfe6ee; color: #39495a; }
+  .horario { color: #24723f; }
+  .fora { color: #8a99a8; }
+  .status { font-size: .85rem; }
+  .tabela { overflow-x: auto; }
+</style>
+</head>
+<body>
+  <h1>💧 Simulador de hidrômetros — Olho d'Água</h1>
+  <span class="aviso">⚠️ Todos os dados desta tela são SIMULADOS</span>
+
+  <div class="barra">
+    <span class="relogio" id="relogio">--</span>
+    <button onclick="post('/api/madrugada')">🌙 Ir para madrugada</button>
+    <button onclick="post('/api/pular?horas=1')">+1 h</button>
+    <button onclick="post('/api/pular?horas=6')">+6 h</button>
+    <label>Fator:
+      <select id="fator" onchange="post('/api/fator?valor=' + this.value)">
+        <option value="1">1x (tempo real)</option>
+        <option value="30">30x</option>
+        <option value="60">60x (1 min = 1 h)</option>
+        <option value="120">120x</option>
+        <option value="240">240x</option>
+      </select>
+    </label>
+    <span class="status" id="status"></span>
+  </div>
+
+  <div class="tabela">
+  <table>
+    <thead>
+      <tr><th>Prédio</th><th>Uso</th><th>Vazão (L/min)</th><th>Total (L)</th><th>Registro</th><th>Vazamento</th><th>Injetar cenário</th></tr>
+    </thead>
+    <tbody id="linhas"></tbody>
+  </table>
+  </div>
+
+<script>
+const CENARIOS = ["descarga", "boia", "torneira", "cano_rompido"];
+
+async function post(url) {
+  const r = await fetch(url, { method: "POST" });
+  if (!r.ok) alert("Erro: " + (await r.text()));
+  atualizar();
+}
+
+function linha(p) {
+  const botoes = CENARIOS.map(c =>
+    `<button class="perigo" onclick="post('/api/cenario/${p.id}/${c}')">${c.replace("_", " ")}</button>`
+  ).join(" ") + ` <button class="ok" onclick="post('/api/cenario/${p.id}/nenhum')">consertar</button>`;
+  const reg = p.registro === "aberto"
+    ? `aberto <button onclick="post('/api/registro/${p.id}/fechar')">fechar</button>`
+    : `<span class="tag fech">fechado</span> <button onclick="post('/api/registro/${p.id}/abrir')">abrir</button>`;
+  const vaz = p.cenario ? `<span class="tag vaz">${p.cenario} · ${p.cenario_vazao} L/min</span>` : "—";
+  return `<tr>
+    <td><b>${p.nome}</b><br><small>${p.id} · ${p.tipo}</small></td>
+    <td class="${p.em_horario ? "horario" : "fora"}">${p.em_horario ? "em horário" : "fora do horário"}</td>
+    <td class="num">${p.vazao_lpm.toFixed(2)}</td>
+    <td class="num">${p.total_litros.toLocaleString("pt-BR")}</td>
+    <td>${reg}</td>
+    <td>${vaz}</td>
+    <td>${botoes}</td>
+  </tr>`;
+}
+
+async function atualizar() {
+  try {
+    const e = await (await fetch("/api/estado")).json();
+    document.getElementById("relogio").textContent = "🕒 " + e.relogio_legivel;
+    document.getElementById("status").textContent =
+      (e.mqtt_conectado ? "🟢 MQTT conectado" : "🔴 MQTT desconectado") + " · " + e.broker;
+    const sel = document.getElementById("fator");
+    if (document.activeElement !== sel) sel.value = String(e.fator_tempo);
+    document.getElementById("linhas").innerHTML = e.predios.map(linha).join("");
+  } catch (err) {
+    document.getElementById("status").textContent = "🔴 Simulador fora do ar";
+  }
+}
+
+atualizar();
+setInterval(atualizar, 1000);
+</script>
+</body>
+</html>

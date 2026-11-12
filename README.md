@@ -16,6 +16,19 @@ copy .env.example .env   # e preencha os valores
 python teste_mqtt.py     # teste de ida e volta no broker público
 ```
 
+## Simulador de hidrômetros
+
+```bash
+.venv\Scripts\python.exe simulador\simulador.py              # 1 min real = 1 h simulada
+.venv\Scripts\python.exe simulador\simulador.py --madrugada  # começa às 01:00 de um dia útil
+```
+
+- Publica `hidrometro/<id>/leitura` a cada 2 s para os prédios ativos de `dados/escolas.json`.
+- Obedece `hidrometro/<id>/comando` (`fechar_registro` / `abrir_registro`).
+- Painel de controle em http://127.0.0.1:8001: injetar vazamento (descarga, boia, torneira,
+  cano rompido), consertar, abrir/fechar registro, ir para a madrugada, adiantar o relógio.
+- Sem `.env`, usa o broker público `broker.hivemq.com:1883`.
+
 ## Estrutura
 
 ```

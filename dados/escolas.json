@@ -1,0 +1,104 @@
+{
+  "aviso": "DADOS SIMULADOS — nomes, coordenadas e consumos fictícios para o protótipo do hackathon.",
+  "predios": [
+    {
+      "id": "escola1",
+      "nome": "Escola Municipal Exemplo 1",
+      "tipo": "escola",
+      "regiao": "Centro",
+      "lat": -23.3103,
+      "lon": -51.1596,
+      "ativo": true,
+      "horario_uso": "07:00-17:30",
+      "media_diaria_litros": 18000
+    },
+    {
+      "id": "escola2",
+      "nome": "Escola Municipal Exemplo 2",
+      "tipo": "escola",
+      "regiao": "Norte",
+      "lat": -23.2580,
+      "lon": -51.1660,
+      "ativo": true,
+      "horario_uso": "07:00-17:30",
+      "media_diaria_litros": 15000
+    },
+    {
+      "id": "escola3",
+      "nome": "Escola Municipal Exemplo 3",
+      "tipo": "escola",
+      "regiao": "Sul",
+      "lat": -23.3560,
+      "lon": -51.1580,
+      "ativo": true,
+      "horario_uso": "07:30-17:30",
+      "media_diaria_litros": 12000
+    },
+    {
+      "id": "escola4",
+      "nome": "Escola Municipal Exemplo 4",
+      "tipo": "escola",
+      "regiao": "Leste",
+      "lat": -23.3050,
+      "lon": -51.1180,
+      "ativo": true,
+      "horario_uso": "07:00-17:30",
+      "media_diaria_litros": 14000
+    },
+    {
+      "id": "escola5",
+      "nome": "Escola Municipal Exemplo 5",
+      "tipo": "escola",
+      "regiao": "Oeste",
+      "lat": -23.3170,
+      "lon": -51.2050,
+      "ativo": true,
+      "horario_uso": "07:00-17:30",
+      "media_diaria_litros": 10000
+    },
+    {
+      "id": "escola6",
+      "nome": "Escola Municipal Exemplo 6 (desativada)",
+      "tipo": "escola",
+      "regiao": "Norte",
+      "lat": -23.2880,
+      "lon": -51.1420,
+      "ativo": false,
+      "horario_uso": "07:00-17:30",
+      "media_diaria_litros": 0
+    },
+    {
+      "id": "cmei1",
+      "nome": "CMEI Exemplo 1",
+      "tipo": "cmei",
+      "regiao": "Norte",
+      "lat": -23.2700,
+      "lon": -51.1500,
+      "ativo": true,
+      "horario_uso": "06:30-18:30",
+      "media_diaria_litros": 7000
+    },
+    {
+      "id": "cmei2",
+      "nome": "CMEI Exemplo 2",
+      "tipo": "cmei",
+      "regiao": "Sul",
+      "lat": -23.3420,
+      "lon": -51.1750,
+      "ativo": true,
+      "horario_uso": "06:30-18:30",
+      "media_diaria_litros": 6000
+    },
+    {
+      "id": "cmei3",
+      "nome": "CMEI Exemplo 3",
+      "tipo": "cmei",
+      "regiao": "Leste",
+      "lat": -23.3200,
+      "lon": -51.1300,
+      "ativo": true,
+      "horario_uso": "07:00-18:00",
+      "media_diaria_litros": 5500
+    }
+  ]
+}
