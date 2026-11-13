@@ -13,5 +13,3 @@ python-dotenv>=1.0
 # Bot de alertas com botões "Fechar registro" / "Reabrir registro"
 python-telegram-bot>=21,<23
 
-# Laudo PDF do auditor de contas
-reportlab>=4.2

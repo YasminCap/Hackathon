@@ -5,27 +5,27 @@ Responda sempre em português. Entregue arquivos completos, comentados e prontos
 
 ## O que é
 Plataforma para a Prefeitura de Londrina monitorar em tempo real a água dos prédios municipais: escolas (1º ao 5º ano), CMEIs, secretarias/sede, UBS, esporte e cultura (ginásio, centro cultural) e assistência social (CRAS).
-Detecta vazamentos, avisa a manutenção pelo Telegram, gera ordem de serviço, audita faturas da Sanepar e mostra a economia em R$.
+Detecta vazamentos, avisa a manutenção pelo Telegram, gera ordem de serviço e mostra a economia em R$.
 
 ## Decisões fixas (não mudar sem o time pedir)
 - Protótipo **só de software**. O hidrômetro é simulado, no mesmo contrato MQTT que um ESP32 real usaria. Não sugerir hardware.
 - Cliente é a prefeitura. Nada de venda B2C ou kit residencial.
 - Todo dado, tarifa ou fatura de exemplo deve ser marcado como **simulado**.
 - Credenciais só no `.env` (lido com python-dotenv). O `.env` nunca vai para o Git; o `.env.example` vai, sem valores.
-- **Escolas Guardiãs fica fora do protótipo** (decisão do time em 13/11): aparece só como feature futura no slide da apresentação.
+- **Fora do protótipo, só como ideia no slide** (decisões do time em 13/11): ver a seção "Ideias futuras (só slide)". Não implementar.
 
 ## Stack
-Python 3.11+, paho-mqtt 2.x (`mqtt.CallbackAPIVersion.VERSION2`), FastAPI + uvicorn, SQLite, python-telegram-bot 21+, reportlab (laudo PDF).
+Python 3.11+, paho-mqtt 2.x (`mqtt.CallbackAPIVersion.VERSION2`), FastAPI + uvicorn, SQLite, python-telegram-bot 21+.
 Painel: HTML + JS puro, Tailwind via CDN, Chart.js e Leaflet, servido pelo próprio FastAPI, atualizado por polling a cada 2 s.
 Broker: HiveMQ Cloud (TLS, porta 8883) no evento; `broker.hivemq.com:1883` só para testes rápidos.
 
 ## Estrutura
 ```
 olho-dagua/
-├── backend/      main.py (FastAPI), mqtt_cliente.py, db.py, deteccao.py, auditor.py, telegram_bot.py, laudo.py
+├── backend/      main.py (FastAPI), mqtt_cliente.py, db.py, deteccao.py, telegram_bot.py
 ├── simulador/    simulador.py (+ endpoint ou painel simples para injetar cenários)
 ├── painel/       index.html, app.js
-├── dados/        predios.json, faturas.json (simulados)
+├── dados/        predios.json (simulado)
 ├── .env / .env.example / .gitignore / requirements.txt / README.md
 ```
 
@@ -42,11 +42,6 @@ Comando — tópico `hidrometro/<id>/comando`:
 ```
 Ações: `fechar_registro`, `abrir_registro`. No protótipo, o simulador zera a vazão do prédio enquanto o registro estiver fechado.
 
-Fatura simulada:
-```json
-{"predio": "escola1", "matricula": "123456", "mes": "2026-10", "m3_faturado": 48, "m3_medido": 31, "tipo_leitura": "estimada", "categoria": "publica", "valor_rs": 612.40}
-```
-
 Cadastro de prédios (`dados/predios.json`): `id`, `nome`, `tipo` (escola|cmei|administrativo|saude|esporte|cultura|assistencia), `regiao`, `lat`, `lon` (em Londrina), `ativo`, `horario_uso` (ex.: "07:00-17:30"), `dias_uso` (`uteis` = seg a sex | `todos`), `media_diaria_litros`.
 
 ## Simulador
@@ -62,12 +57,6 @@ Cadastro de prédios (`dados/predios.json`): `id`, `nome`, `tipo` (escola|cmei|a
 - Classificação apresentada como "provável causa". Cooldown entre alertas; aviso de "resolvido" quando o fluxo zera.
 - Cada alerta gera ordem de serviço (aberta, em atendimento, resolvida).
 
-## Auditor de contas
-- Estimada acima do medido: `tipo_leitura == "estimada"` e `m3_faturado > m3_medido * 1.10`.
-- Faturado muito acima do medido (qualquer leitura): tolerância 20%.
-- Categoria errada; imóvel inativo pagando; duas matrículas no mesmo prédio e mês.
-- Valor a mais (simplificação explícita): `valor_rs / m3_faturado * (m3_faturado - m3_medido)`.
-
 ## Ordem de construção
 1. Estrutura, venv, requirements, `.env.example`, teste MQTT, primeiro commit.
 2. `dados/predios.json` + simulador publicando.
@@ -75,9 +64,16 @@ Cadastro de prédios (`dados/predios.json`): `id`, `nome`, `tipo` (escola|cmei|a
 4. Painel mínimo (mapa + gráfico). **= checkpoint eliminatório de sábado 14/11 à tarde.**
 5. Detecção + alerta Telegram com botões "Fechar registro" / "Reabrir registro".
 6. Ordens de serviço + contador de R$ economizados.
-7. Auditor de contas + laudo PDF.
 
-(Escolas Guardiãs saiu do protótipo — só slide de feature futura.)
+## Ideias futuras (só slide — não implementar no protótipo)
+- **Escolas Guardiãs:** ranking de redução de consumo de cada prédio contra a própria média.
+- **Auditor de contas da Sanepar + laudo PDF:** comparar o m³ faturado com o m³ medido pelo nosso hidrômetro e apontar
+  leitura estimada acima do medido (>10%), faturado muito acima do medido (>20%), categoria errada, prédio inativo pagando
+  e matrícula duplicada; valor a mais estimado por `valor_rs / m3_faturado * (m3_faturado - m3_medido)` (simplificação:
+  a tarifa real é por faixas). O laudo serviria para contestar a cobrança.
+- **UPA e unidades 24h:** precisam de outra regra de vazamento (vazão mínima da madrugada), pois nunca fecham.
+- **IA com dados reais:** com o histórico real dos hidrômetros, evoluir a detecção para modelos de machine learning.
+- **Hidrômetros reais (ESP32)** nos prédios, no mesmo contrato MQTT do simulador.
 
 Nunca cortar: simulador → detecção → alerta no celular com "Fechar registro" → painel atualizando.
 Commits pequenos e frequentes (provam que o trabalho foi feito durante o evento).

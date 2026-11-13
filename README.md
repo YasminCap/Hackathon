@@ -5,7 +5,7 @@ secretarias, UBS, esporte, cultura e assistência social.
 Projeto do SmartCities Hackathon Londrina 2026 — tema: Transformação Digital na Gestão Pública.
 
 > Protótipo de software: o hidrômetro é **simulado**, no mesmo contrato MQTT que um ESP32 real usaria.
-> Todos os dados, tarifas e faturas de exemplo são **simulados**.
+> Todos os dados e tarifas de exemplo são **simulados**.
 
 ## Como rodar (Windows)
 
@@ -85,8 +85,8 @@ Atualiza sozinho a cada 2 s.
 ## Estrutura
 
 ```
-backend/    API FastAPI, cliente MQTT, banco, detecção, auditor, bot Telegram, laudo
+backend/    API FastAPI, cliente MQTT, banco, detecção, bot Telegram
 simulador/  simulador dos hidrômetros + injeção de cenários
 painel/     painel web (HTML + JS)
-dados/      predios.json e faturas.json (simulados)
+dados/      predios.json (simulado)
 ```
