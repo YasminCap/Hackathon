@@ -26,7 +26,8 @@
         <h1 class="font-bold leading-tight">Controle da demonstração</h1>
         <p class="text-xs text-slate-500">Olho d'Água · aqui você provoca vazamentos de propósito</p>
       </div>
-      <span class="ml-auto bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-1 rounded-full">dados simulados</span>
+      <span id="mqtt" class="ml-auto bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">conectando…</span>
+      <span class="bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-1 rounded-full">dados simulados</span>
     </div>
   </header>
 
@@ -46,7 +47,9 @@
       <div class="mt-4 flex flex-wrap justify-center gap-3 text-sm">
         <button onclick="consertarTudo()" class="text-emerald-700 hover:underline">🔧 Consertar tudo e recomeçar</button>
         <span class="text-slate-300">|</span>
-        <a href="http://127.0.0.1:8000" target="_blank" class="text-sky-700 hover:underline">Abrir o painel da prefeitura ↗</a>
+        <!-- o link só aparece se o painel estiver rodando NESTE computador (ver verificarPainelLocal) -->
+        <a id="link-painel" href="http://127.0.0.1:8000" target="_blank" class="hidden text-sky-700 hover:underline">Abrir o painel da prefeitura ↗</a>
+        <span id="painel-remoto" class="text-slate-500">O painel da prefeitura está em outro computador</span>
       </div>
     </section>
 
@@ -196,12 +199,45 @@ async function atualizar() {
     estado.predios.forEach(atualizarLinha);
     marcarProblemaAtivo();
   } catch {
+    estado = null;  // faz o selo do topo mostrar "simulador fora do ar"
     document.getElementById("periodo").textContent = "· simulador fora do ar (ele está rodando no terminal?)";
+  }
+}
+
+/** O painel da prefeitura (backend) está rodando neste mesmo computador?
+ *  Se sim, mostra o link; se não (cada integrante num notebook), mostra um aviso.
+ *  mode "no-cors": só queremos saber se a porta 8000 responde. */
+async function verificarPainelLocal() {
+  let local = false;
+  try {
+    await fetch("http://127.0.0.1:8000/api/saude", { mode: "no-cors", cache: "no-store" });
+    local = true;
+  } catch { /* nada escutando na porta 8000 deste computador */ }
+  document.getElementById("link-painel").classList.toggle("hidden", !local);
+  document.getElementById("painel-remoto").classList.toggle("hidden", local);
+}
+
+// Mostra se o simulador está conectado ao "correio" (MQTT) — essencial quando o
+// painel da prefeitura roda em outro computador.
+function mostrarConexao() {
+  const el = document.getElementById("mqtt");
+  if (!estado) {
+    el.textContent = "🔴 simulador fora do ar";
+    el.className = "ml-auto bg-red-50 text-red-700 text-xs px-2 py-1 rounded-full";
+  } else if (estado.mqtt_conectado) {
+    el.textContent = "🟢 enviando dados";
+    el.className = "ml-auto bg-emerald-50 text-emerald-700 text-xs px-2 py-1 rounded-full";
+  } else {
+    el.textContent = "🔴 sem conexão com a internet (MQTT)";
+    el.className = "ml-auto bg-red-50 text-red-700 text-xs px-2 py-1 rounded-full";
   }
 }
 
 atualizar();
 setInterval(atualizar, 1000);
+setInterval(mostrarConexao, 1000);
+verificarPainelLocal();
+setInterval(verificarPainelLocal, 10000);
 </script>
 </body>
 </html>

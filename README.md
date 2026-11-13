@@ -17,6 +17,9 @@ copy .env.example .env   # e preencha os valores
 python teste_mqtt.py     # teste de ida e volta no broker público
 ```
 
+> **Simulador num notebook e painel do gestor em outro?** Veja o
+> [GUIA_DOIS_COMPUTADORES.md](GUIA_DOIS_COMPUTADORES.md).
+
 ## Simulador de hidrômetros
 
 ```bash

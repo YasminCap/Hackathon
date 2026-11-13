@@ -1,0 +1,129 @@
+# Guia: simulador num notebook, painel do gestor em outro
+
+Um integrante cuida do **simulador** (provoca os vazamentos) e outro usa o **painel do gestor**,
+cada um no seu notebook. Os dois **não precisam estar na mesma rede**: as mensagens passam por
+um "correio" na internet (o broker MQTT), como seria na vida real.
+
+```
+ Notebook 1 — SIMULADOR                  internet                 Notebook 2 — GESTOR
+ provoca o vazamento  ──────►  correio MQTT (HiveMQ)  ──────►  vê o alerta no painel
+ a água para          ◄──────                          ◄──────  clica "Fechar registro"
+```
+
+> Todos os dados são **simulados**.
+
+---
+
+## Parte 1 — Preparar o notebook do colega (uma vez só, antes do evento)
+
+### 1. Instalar o Python
+
+1. Baixe o **Python 3.12** em <https://www.python.org/downloads/>.
+2. Na instalação, **marque a caixa "Add python.exe to PATH"** antes de clicar em *Install Now*.
+
+### 2. Levar o projeto para o notebook
+
+**No computador que já tem o projeto**, abra o terminal na pasta do projeto e rode:
+
+```bash
+git archive --format=zip -o olho-dagua.zip HEAD
+```
+
+Isso cria o arquivo `olho-dagua.zip` só com os arquivos do projeto (sem o `.venv`, sem o banco
+de dados e sem o `.env` com senhas). Passe o zip por pendrive, e-mail ou drive.
+
+**No notebook do colega**, extraia o zip numa pasta de nome simples, por exemplo `C:\olho-dagua`
+(evite espaços e apóstrofos no nome da pasta).
+
+### 3. Instalar as dependências
+
+No VS Code: **Arquivo → Abrir pasta** → escolha `C:\olho-dagua` → **Terminal → Novo terminal**.
+Rode, um de cada vez:
+
+```bash
+py -3.12 -m venv .venv
+```
+```bash
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+> Se aparecer "py não é reconhecido", troque o primeiro comando por `python -m venv .venv`.
+
+### 4. Testar a internet / correio
+
+```bash
+.venv\Scripts\python.exe teste_mqtt.py
+```
+
+Tem que terminar com **✅ Teste MQTT OK**. Faça esse teste **nos dois notebooks**.
+
+### 5. Arquivo `.env` (só se vocês configurarem o HiveMQ Cloud)
+
+Sem `.env`, os dois notebooks usam automaticamente o mesmo correio público de teste — não precisa
+fazer nada. Se o grupo configurar o **HiveMQ Cloud** (privado), os **dois notebooks precisam do
+mesmo `.env`**. Passe esse arquivo em particular (nunca num grupo aberto e nunca pelo Git).
+
+---
+
+## Parte 2 — No dia da apresentação
+
+### Notebook 1 — quem cuida do SIMULADOR
+
+```bash
+.venv\Scripts\python.exe simulador\simulador.py
+```
+
+Abra no navegador: **http://127.0.0.1:8001**
+Confira no topo da tela: **🟢 enviando dados**.
+
+### Notebook 2 — quem usa o PAINEL DO GESTOR
+
+Só na **primeira vez** nesse notebook (cria o histórico simulado de consumo):
+
+```bash
+.venv\Scripts\python.exe simulador\gerar_historico.py
+```
+
+Depois, sempre:
+
+```bash
+.venv\Scripts\python.exe -m backend.main
+```
+
+Abra no navegador: **http://127.0.0.1:8000**
+Confira: **"Unidades online: 12 de 12"** — isso prova que as leituras do notebook 1 estão chegando.
+
+---
+
+## Parte 3 — Ensaio a dois (faça antes de apresentar)
+
+| Passo | Quem | O que fazer | O que deve acontecer |
+|---|---|---|---|
+| 1 | Simulador | Clicar **▶ Simular vazamento** | A Escola Municipal Exemplo 1 fica "Torneira aberta" |
+| 2 | Gestor | Esperar ~30 segundos | Aparece **🚨 Vazamento provável** e o ponto vermelho no mapa |
+| 3 | Gestor | Clicar **🔒 Fechar registro** no alerta | Em instantes o alerta vira **✅ Resolvido** |
+| 4 | Simulador | Olhar a lista "Como estão os prédios agora" | A Escola 1 aparece como **Água cortada** |
+| 5 | Simulador | Clicar **🔧 Consertar tudo e recomeçar** | Tudo volta ao normal para a próxima rodada |
+
+---
+
+## Regras importantes
+
+- **Só UM simulador ligado no grupo inteiro.** Dois simuladores ao mesmo tempo mandam leituras
+  em dobro e os gráficos ficam malucos.
+- **Só UM painel do gestor (backend)** ligado. Outras pessoas podem olhar a tela de quem está com ele.
+- **Quem manda no relógio é o simulador.** O horário que aparece no painel vem dele.
+- Para desligar qualquer um: clique no terminal e aperte **Ctrl+C**.
+
+---
+
+## Se algo der errado
+
+| Sintoma | O que fazer |
+|---|---|
+| Simulador mostra **🔴 sem conexão (MQTT)** | Confira a internet e rode `teste_mqtt.py`. Wi-Fi de evento às vezes bloqueia esse tipo de conexão: use o **roteador do celular** de alguém. |
+| Painel mostra **0 de 12 unidades online** | O simulador está desligado ou sem internet no notebook 1. Se usam `.env`, confira se é **o mesmo** nos dois. |
+| O alerta não aparece | Tem que ser **madrugada na simulação** (o botão "Simular vazamento" já cuida disso) e esperar ~30 s. |
+| O painel mostra a tela antiga | Aperte **Ctrl+Shift+R** no navegador. |
+| "py" ou "python" não é reconhecido | Reinstale o Python marcando **"Add python.exe to PATH"**. |
+| Prédios "piscando" ou números estranhos | Outro grupo pode estar usando os mesmos nomes no correio público. Configurem o **HiveMQ Cloud** (privado) e usem o mesmo `.env` nos dois notebooks. |
