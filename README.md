@@ -10,6 +10,8 @@ Projeto do SmartCities Hackathon Londrina 2026 — tema: Transformação Digital
 ## Como rodar (Windows)
 
 ```bash
+git clone https://github.com/YasminCap/Hackathon.git olho-dagua
+cd olho-dagua
 py -3.12 -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt

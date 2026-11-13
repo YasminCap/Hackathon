@@ -16,24 +16,30 @@ um "correio" na internet (o broker MQTT), como seria na vida real.
 
 ## Parte 1 — Preparar o notebook do colega (uma vez só, antes do evento)
 
-### 1. Instalar o Python
+### 1. Instalar o Python e o Git
 
 1. Baixe o **Python 3.12** em <https://www.python.org/downloads/>.
-2. Na instalação, **marque a caixa "Add python.exe to PATH"** antes de clicar em *Install Now*.
+   Na instalação, **marque a caixa "Add python.exe to PATH"** antes de clicar em *Install Now*.
+2. Baixe o **Git** em <https://git-scm.com/download/win> e instale com as opções padrão
+   (é só ir clicando em *Next*).
 
-### 2. Levar o projeto para o notebook
+### 2. Baixar o projeto do GitHub
 
-**No computador que já tem o projeto**, abra o terminal na pasta do projeto e rode:
+O projeto está em **<https://github.com/YasminCap/Hackathon>**.
+Se o repositório for **privado**, a dona precisa antes convidar o colega em
+*Settings → Collaborators* no GitHub, e ele precisa aceitar o convite que chega por e-mail.
+
+Abra o **Prompt de Comando** (ou o terminal do VS Code) e rode, um de cada vez:
 
 ```bash
-git archive --format=zip -o olho-dagua.zip HEAD
+cd C:\
+```
+```bash
+git clone https://github.com/YasminCap/Hackathon.git olho-dagua
 ```
 
-Isso cria o arquivo `olho-dagua.zip` só com os arquivos do projeto (sem o `.venv`, sem o banco
-de dados e sem o `.env` com senhas). Passe o zip por pendrive, e-mail ou drive.
-
-**No notebook do colega**, extraia o zip numa pasta de nome simples, por exemplo `C:\olho-dagua`
-(evite espaços e apóstrofos no nome da pasta).
+Isso cria a pasta `C:\olho-dagua` com o projeto. (Se pedir login do GitHub, entre com a conta
+de quem foi convidado.) O `.env` com senhas **não** vem junto — de propósito.
 
 ### 3. Instalar as dependências
 
@@ -66,6 +72,17 @@ mesmo `.env`**. Passe esse arquivo em particular (nunca num grupo aberto e nunca
 ---
 
 ## Parte 2 — No dia da apresentação
+
+### Primeiro: pegar a versão mais nova (nos dois notebooks)
+
+O projeto continua mudando durante o evento. Antes de ligar qualquer coisa, na pasta do projeto:
+
+```bash
+git pull
+```
+
+> Se alguma dependência nova tiver entrado, rode de novo
+> `.venv\Scripts\python.exe -m pip install -r requirements.txt`.
 
 ### Notebook 1 — quem cuida do SIMULADOR
 
@@ -126,4 +143,7 @@ Confira: **"Unidades online: 12 de 12"** — isso prova que as leituras do noteb
 | O alerta não aparece | Tem que ser **madrugada na simulação** (o botão "Simular vazamento" já cuida disso) e esperar ~30 s. |
 | O painel mostra a tela antiga | Aperte **Ctrl+Shift+R** no navegador. |
 | "py" ou "python" não é reconhecido | Reinstale o Python marcando **"Add python.exe to PATH"**. |
+| "git" não é reconhecido | Instale o Git (<https://git-scm.com/download/win>) e abra um terminal novo. |
+| `git clone` diz "Repository not found" | O repositório é privado e o colega ainda não foi convidado (ou não aceitou o convite). |
+| As telas não têm as mudanças mais novas | Rode `git pull` na pasta do projeto e reinicie o simulador e o backend. |
 | Prédios "piscando" ou números estranhos | Outro grupo pode estar usando os mesmos nomes no correio público. Configurem o **HiveMQ Cloud** (privado) e usem o mesmo `.env` nos dois notebooks. |
