@@ -3,101 +3,226 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Simulador Olho d'Água</title>
-<!-- Painel de controle do SIMULADOR (não é o painel da prefeitura).
-     Serve para injetar vazamentos e mexer no relógio durante a demonstração. -->
-<style>
-  body { font-family: system-ui, sans-serif; margin: 16px; background: #f4f7fa; color: #1b2733; }
-  h1 { font-size: 1.3rem; margin: 0 0 4px; }
-  .aviso { background: #fff3cd; border: 1px solid #e6c65c; padding: 6px 10px; border-radius: 6px; display: inline-block; font-size: .85rem; }
-  .barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
-  .relogio { font-size: 1.4rem; font-weight: 700; margin-right: 12px; }
-  button { border: 1px solid #9fb3c8; background: #fff; border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: .85rem; }
-  button:hover { background: #e8f0f8; }
-  button.perigo { border-color: #d9534f; color: #b52b27; }
-  button.ok { border-color: #3c9a5f; color: #24723f; }
-  table { border-collapse: collapse; width: 100%; background: #fff; border-radius: 8px; overflow: hidden; }
-  th, td { padding: 8px; border-bottom: 1px solid #e3e9ef; text-align: left; font-size: .9rem; }
-  th { background: #e8eef4; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .tag { padding: 2px 6px; border-radius: 4px; font-size: .78rem; }
-  .vaz { background: #fde2e1; color: #a12622; }
-  .fech { background: #dfe6ee; color: #39495a; }
-  .horario { color: #24723f; }
-  .fora { color: #8a99a8; }
-  .status { font-size: .85rem; }
-  .tabela { overflow-x: auto; }
-</style>
+<title>Controle do Simulador — Olho d'Água</title>
+<!--
+  Tela de CONTROLE DO SIMULADOR (não é o painel da prefeitura).
+  Serve para a demonstração: provocar problemas de propósito e mexer no relógio.
+  Usa a API do próprio simulador (simulador.py). Todos os dados são SIMULADOS.
+-->
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
 </head>
-<body>
-  <h1>💧 Simulador de hidrômetros — Olho d'Água</h1>
-  <span class="aviso">⚠️ Todos os dados desta tela são SIMULADOS</span>
+<body class="bg-slate-100 text-slate-800">
 
-  <div class="barra">
-    <span class="relogio" id="relogio">--</span>
-    <button onclick="post('/api/madrugada')">🌙 Ir para madrugada</button>
-    <button onclick="post('/api/pular?horas=1')">+1 h</button>
-    <button onclick="post('/api/pular?horas=6')">+6 h</button>
-    <label>Fator:
-      <select id="fator" onchange="post('/api/fator?valor=' + this.value)">
-        <option value="1">1x (tempo real)</option>
-        <option value="30">30x</option>
-        <option value="60">60x (1 min = 1 h)</option>
-        <option value="120">120x</option>
-        <option value="240">240x</option>
-      </select>
-    </label>
-    <span class="status" id="status"></span>
-  </div>
+  <header class="bg-teal-800 text-white">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
+      <h1 class="text-xl font-bold">🎛️ Controle do simulador</h1>
+      <span class="bg-amber-300 text-amber-950 text-xs font-semibold px-2 py-1 rounded">DADOS SIMULADOS</span>
+      <a href="http://127.0.0.1:8000" target="_blank"
+         class="ml-auto bg-white text-teal-900 text-sm font-semibold px-3 py-1.5 rounded hover:bg-teal-50">
+        Abrir o painel da prefeitura ↗
+      </a>
+    </div>
+  </header>
 
-  <div class="tabela">
-  <table>
-    <thead>
-      <tr><th>Prédio</th><th>Uso</th><th>Vazão (L/min)</th><th>Total (L)</th><th>Registro</th><th>Vazamento</th><th>Injetar cenário</th></tr>
-    </thead>
-    <tbody id="linhas"></tbody>
-  </table>
-  </div>
+  <main class="max-w-6xl mx-auto px-4 py-4 space-y-4">
+
+    <!-- Explicação -->
+    <section class="bg-white rounded-lg shadow p-4">
+      <p class="text-sm text-slate-600 mb-3">
+        Esta tela faz o papel dos <b>medidores de água</b> das escolas. Aqui você
+        <b>provoca problemas de propósito</b> para mostrar o sistema reagindo.
+      </p>
+      <ol class="grid sm:grid-cols-3 gap-3 text-sm">
+        <li class="bg-slate-50 rounded p-3"><b>1.</b> Leve o relógio para a <b>madrugada</b> (escolas vazias — qualquer água correndo é suspeita).</li>
+        <li class="bg-slate-50 rounded p-3"><b>2.</b> Escolha uma escola e clique num <b>problema</b>, por exemplo “Torneira aberta”.</li>
+        <li class="bg-slate-50 rounded p-3"><b>3.</b> Em cerca de <b>30 segundos</b> o alerta aparece no painel da prefeitura (e no Telegram, se configurado).</li>
+      </ol>
+    </section>
+
+    <!-- Relógio + demonstração rápida -->
+    <section class="grid md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="text-xs text-slate-500">Horário na simulação</div>
+        <div id="relogio" class="text-3xl font-bold my-1">--</div>
+        <div id="periodo" class="text-sm text-slate-600 mb-3">&nbsp;</div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="post('/api/madrugada')" class="bg-indigo-700 hover:bg-indigo-800 text-white text-sm px-3 py-2 rounded">🌙 Ir para a madrugada</button>
+          <button onclick="post('/api/pular?horas=1')" class="bg-slate-200 hover:bg-slate-300 text-sm px-3 py-2 rounded">⏩ Avançar 1 hora</button>
+          <button onclick="post('/api/pular?horas=6')" class="bg-slate-200 hover:bg-slate-300 text-sm px-3 py-2 rounded">⏩ Avançar 6 horas</button>
+        </div>
+        <p id="velocidade" class="text-xs text-slate-500 mt-3"></p>
+      </div>
+
+      <div class="bg-white rounded-lg shadow p-4 flex flex-col">
+        <div class="text-xs text-slate-500">Atalho para a apresentação</div>
+        <div class="text-lg font-semibold my-1">⚡ Demonstração rápida</div>
+        <p class="text-sm text-slate-600 mb-3">
+          Leva o relógio para a madrugada e abre uma torneira na
+          <b>Escola Municipal Exemplo 1</b>. O alerta aparece em cerca de 30 segundos.
+        </p>
+        <div class="mt-auto flex flex-wrap gap-2">
+          <button onclick="demonstracao()" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded">Começar demonstração</button>
+          <button onclick="consertarTudo()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded">🔧 Consertar tudo</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Escolas -->
+    <section>
+      <h2 class="font-semibold mb-2">Escolas e CMEIs</h2>
+      <div id="cartoes" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </section>
+
+    <!-- Avançado -->
+    <details class="bg-white rounded-lg shadow p-4 text-sm">
+      <summary class="cursor-pointer font-semibold">Opções avançadas</summary>
+      <div class="mt-3 space-y-2">
+        <label class="flex flex-wrap items-center gap-2">Velocidade do tempo:
+          <select id="fator" onchange="post('/api/fator?valor=' + this.value)" class="border rounded px-2 py-1">
+            <option value="1">tempo real (1 min = 1 min)</option>
+            <option value="30">30× (1 min = 30 min)</option>
+            <option value="60">60× (1 min = 1 hora) — padrão</option>
+            <option value="120">120× (1 min = 2 horas)</option>
+            <option value="240">240× (1 min = 4 horas)</option>
+          </select>
+        </label>
+        <div id="conexao" class="text-slate-600"></div>
+        <p class="text-slate-500">“Cortar a água” aqui fecha o registro direto no simulador. Na demonstração, o certo é
+          cortar pelo botão do Telegram ou do painel da prefeitura.</p>
+      </div>
+    </details>
+  </main>
 
 <script>
-const CENARIOS = ["descarga", "boia", "torneira", "cano_rompido"];
+// Problemas que dá para simular (nome na API → texto para pessoas)
+const PROBLEMAS = {
+  torneira:     { icone: "🚰", nome: "Torneira aberta",       dica: "5 a 10 litros por minuto" },
+  descarga:     { icone: "🚽", nome: "Descarga vazando",      dica: "vazamento pequeno, 0,5 a 3 L/min" },
+  boia:         { icone: "🪣", nome: "Caixa d'água vazando",  dica: "boia travada, 3 a 6 L/min" },
+  cano_rompido: { icone: "💥", nome: "Cano estourado",        dica: "vazamento grande, 40 a 80 L/min" },
+};
+const DIAS = { seg: "segunda", ter: "terça", qua: "quarta", qui: "quinta", sex: "sexta", "sáb": "sábado", dom: "domingo" };
+
+let estado = null;
+const cartoes = {};   // id → elementos do cartão (criados uma vez; só os textos mudam)
 
 async function post(url) {
   const r = await fetch(url, { method: "POST" });
-  if (!r.ok) alert("Erro: " + (await r.text()));
-  atualizar();
+  if (!r.ok) alert("Não deu certo: " + (await r.text()));
+  await atualizar();
 }
 
-function linha(p) {
-  const botoes = CENARIOS.map(c =>
-    `<button class="perigo" onclick="post('/api/cenario/${p.id}/${c}')">${c.replace("_", " ")}</button>`
-  ).join(" ") + ` <button class="ok" onclick="post('/api/cenario/${p.id}/nenhum')">consertar</button>`;
-  const reg = p.registro === "aberto"
-    ? `aberto <button onclick="post('/api/registro/${p.id}/fechar')">fechar</button>`
-    : `<span class="tag fech">fechado</span> <button onclick="post('/api/registro/${p.id}/abrir')">abrir</button>`;
-  const vaz = p.cenario ? `<span class="tag vaz">${p.cenario} · ${p.cenario_vazao} L/min</span>` : "—";
-  return `<tr>
-    <td><b>${p.nome}</b><br><small>${p.id} · ${p.tipo}</small></td>
-    <td class="${p.em_horario ? "horario" : "fora"}">${p.em_horario ? "em horário" : "fora do horário"}</td>
-    <td class="num">${p.vazao_lpm.toFixed(2)}</td>
-    <td class="num">${p.total_litros.toLocaleString("pt-BR")}</td>
-    <td>${reg}</td>
-    <td>${vaz}</td>
-    <td>${botoes}</td>
-  </tr>`;
+async function demonstracao() {
+  await post("/api/madrugada");
+  await post("/api/cenario/escola1/torneira");
+}
+
+async function consertarTudo() {
+  for (const p of estado?.predios || []) {
+    if (p.cenario) await fetch(`/api/cenario/${p.id}/nenhum`, { method: "POST" });
+    if (p.registro === "fechado") await fetch(`/api/registro/${p.id}/abrir`, { method: "POST" });
+  }
+  await atualizar();
+}
+
+function fmt(n) { return Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 1 }); }
+
+/** Frase simples sobre a situação da escola + cor da bolinha. */
+function situacao(p) {
+  if (p.registro === "fechado")
+    return { cor: "bg-blue-700", texto: "🔒 Água cortada (registro fechado)" };
+  if (p.cenario)
+    return { cor: "bg-red-600", texto: `💧 Vazando: ${PROBLEMAS[p.cenario].nome.toLowerCase()}` };
+  return p.em_horario
+    ? { cor: "bg-emerald-500", texto: "Em aula — consumo normal" }
+    : { cor: "bg-slate-400", texto: "Fechada — sem uso de água" };
+}
+
+function criarCartao(p) {
+  const div = document.createElement("div");
+  div.className = "bg-white rounded-lg shadow p-4 flex flex-col gap-2 border-2 border-transparent";
+  div.innerHTML = `
+    <div class="flex items-start gap-2">
+      <div class="min-w-0">
+        <div class="font-semibold leading-tight">${p.nome}</div>
+        <div class="text-xs text-slate-500">${p.tipo === "cmei" ? "CMEI (creche)" : "Escola"}</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 text-sm"><span data-bolinha class="w-3 h-3 rounded-full shrink-0"></span><span data-situacao></span></div>
+    <div class="text-sm text-slate-600">Água passando agora: <b data-vazao></b></div>
+    <div class="text-xs text-slate-500 mt-1">Simular um problema:</div>
+    <div class="grid grid-cols-2 gap-1.5" data-problemas></div>
+    <div class="flex flex-wrap gap-2 mt-1">
+      <button data-consertar class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-3 py-1.5 rounded">🔧 Consertar</button>
+      <button data-registro class="text-sm px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-50"></button>
+    </div>`;
+  const problemas = div.querySelector("[data-problemas]");
+  const botoes = {};
+  for (const [chave, info] of Object.entries(PROBLEMAS)) {
+    const b = document.createElement("button");
+    b.className = "text-left text-sm px-2 py-1.5 rounded border border-red-200 hover:bg-red-50";
+    b.title = info.dica;
+    b.textContent = `${info.icone} ${info.nome}`;
+    b.addEventListener("click", () => post(`/api/cenario/${p.id}/${chave}`));
+    problemas.appendChild(b);
+    botoes[chave] = b;
+  }
+  div.querySelector("[data-consertar]").addEventListener("click", () => post(`/api/cenario/${p.id}/nenhum`));
+  div.querySelector("[data-registro]").addEventListener("click", () => {
+    const atual = cartoes[p.id].registroAberto;
+    post(`/api/registro/${p.id}/${atual ? "fechar" : "abrir"}`);
+  });
+  document.getElementById("cartoes").appendChild(div);
+  return {
+    div, botoes,
+    bolinha: div.querySelector("[data-bolinha]"),
+    situacao: div.querySelector("[data-situacao]"),
+    vazao: div.querySelector("[data-vazao]"),
+    consertar: div.querySelector("[data-consertar]"),
+    registro: div.querySelector("[data-registro]"),
+    registroAberto: true,
+  };
+}
+
+function atualizarCartao(p) {
+  const c = cartoes[p.id] || (cartoes[p.id] = criarCartao(p));
+  const s = situacao(p);
+  c.bolinha.className = `w-3 h-3 rounded-full shrink-0 ${s.cor}`;
+  c.situacao.textContent = s.texto;
+  c.vazao.textContent = `${fmt(p.vazao_lpm)} litros por minuto`;
+  c.div.classList.toggle("border-red-400", !!p.cenario);
+  for (const [chave, b] of Object.entries(c.botoes)) {
+    const ativo = p.cenario === chave;
+    b.classList.toggle("bg-red-600", ativo);
+    b.classList.toggle("text-white", ativo);
+  }
+  c.consertar.classList.toggle("hidden", !p.cenario);
+  c.registroAberto = p.registro === "aberto";
+  c.registro.textContent = c.registroAberto ? "Cortar a água" : "Religar a água";
 }
 
 async function atualizar() {
   try {
-    const e = await (await fetch("/api/estado")).json();
-    document.getElementById("relogio").textContent = "🕒 " + e.relogio_legivel;
-    document.getElementById("status").textContent =
-      (e.mqtt_conectado ? "🟢 MQTT conectado" : "🔴 MQTT desconectado") + " · " + e.broker;
+    estado = await (await fetch("/api/estado")).json();
+    const [dia, data, hora] = estado.relogio_legivel.split(" ");
+    document.getElementById("relogio").textContent = `${hora}`;
+    const h = Number(hora.slice(0, 2));
+    const fimDeSemana = dia === "sáb" || dia === "dom";
+    document.getElementById("periodo").textContent =
+      `${DIAS[dia] || dia}, ${data.slice(0, 5)} · ` +
+      (fimDeSemana ? "fim de semana — escolas fechadas"
+        : h < 6 || h >= 19 ? "madrugada/noite — escolas fechadas"
+        : "horário de aula");
+    document.getElementById("velocidade").textContent =
+      `O tempo corre ${fmt(estado.fator_tempo)}× mais rápido: 1 minuto de verdade = ${fmt(estado.fator_tempo)} minutos aqui.`;
     const sel = document.getElementById("fator");
-    if (document.activeElement !== sel) sel.value = String(e.fator_tempo);
-    document.getElementById("linhas").innerHTML = e.predios.map(linha).join("");
-  } catch (err) {
-    document.getElementById("status").textContent = "🔴 Simulador fora do ar";
+    if (document.activeElement !== sel) sel.value = String(estado.fator_tempo);
+    document.getElementById("conexao").textContent =
+      (estado.mqtt_conectado ? "🟢 Conectado ao correio de mensagens (MQTT)" : "🔴 Sem conexão com o MQTT") +
+      ` · ${estado.broker}`;
+    estado.predios.forEach(atualizarCartao);
+  } catch (erro) {
+    document.getElementById("periodo").textContent = "🔴 O simulador não está respondendo. Ele está rodando no terminal?";
   }
 }
 
