@@ -2,7 +2,7 @@
 gerar_historico.py — cria 4 semanas de consumo SIMULADO, em faixas de 15 min, para cada prédio.
 
 Por quê: a regra de "consumo excessivo" compara o consumo atual com a média da
-mesma faixa de horário da própria escola. Num protótipo recém-ligado não existe
+mesma faixa de horário do próprio prédio. Num protótipo recém-ligado não existe
 esse passado, então geramos um, com o MESMO perfil de consumo do simulador
 (picos de entrada, intervalo e merenda) e variação natural de dia para dia.
 
@@ -21,24 +21,20 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))  # para importar o pacote backend
 
 from backend import db  # noqa: E402
-from simulador import Predio, hhmm_para_minutos  # noqa: E402  (simulador.py nesta pasta)
+from simulador import predio_do_cadastro  # noqa: E402  (simulador.py nesta pasta)
 
 DIAS = 28
 
 
 def main() -> None:
-    with open(RAIZ / "dados" / "escolas.json", encoding="utf-8") as f:
+    with open(RAIZ / "dados" / "predios.json", encoding="utf-8") as f:
         cadastro = [p for p in json.load(f)["predios"] if p["ativo"]]
 
     rng = random.Random(2026)  # reprodutível: mesmo histórico a cada execução
     hoje = date.today()
     linhas = []
     for p in cadastro:
-        ini, fim = p["horario_uso"].split("-")
-        predio = Predio(id=p["id"], nome=p["nome"], tipo=p["tipo"],
-                        inicio_min=hhmm_para_minutos(ini), fim_min=hhmm_para_minutos(fim),
-                        media_diaria=float(p["media_diaria_litros"]), total_litros=0)
-        predio.preparar_perfil()
+        predio = predio_do_cadastro(p)
         for d in range(DIAS, 0, -1):
             dia = hoje - timedelta(days=d)
             util = dia.weekday() < 5

@@ -1,13 +1,16 @@
 """
-simulador.py — hidrômetros SIMULADOS das escolas municipais e CMEIs (Olho d'Água).
+simulador.py — hidrômetros SIMULADOS dos prédios municipais (Olho d'Água):
+escolas, CMEIs, secretarias, UBS, esporte, cultura e assistência social.
 
 Faz o papel que um ESP32 com sensor de vazão faria em cada prédio:
   • publica leituras em  hidrometro/<id>/leitura   (mesmo contrato do ESP32 real)
   • obedece comandos em  hidrometro/<id>/comando   (fechar_registro / abrir_registro)
 
 Recursos:
-  • Consumo realista: picos na entrada, intervalos e merenda; quase zero de madrugada
-    e no fim de semana. A média diária de cada prédio bate com `media_diaria_litros`.
+  • Consumo realista por tipo de prédio (picos de entrada, almoço, limpeza, banhos...);
+    zero fora do horário de uso. Prédios com dias_uso="uteis" ficam fechados no fim de
+    semana; "todos" (ginásio, centro cultural) abrem todo dia.
+    A média diária de cada prédio bate com `media_diaria_litros`.
   • Tempo acelerado (FATOR_TEMPO, padrão 60 → 1 min real = 1 h simulada).
   • "Modo madrugada": pula o relógio para 01:00 de um dia útil (bom para demo de vazamento).
   • Cenários injetáveis por prédio: descarga, boia, cano_rompido, torneira.
@@ -95,6 +98,49 @@ PERFIS = {
             ("fim-60", 30, 1.2),     # jantar e limpeza
         ],
     },
+    "administrativo": {              # secretarias, sede
+        "base": 0.5,
+        "picos": [
+            ("inicio+30", 20, 1.0),  # chegada dos servidores
+            (12 * 60, 30, 1.2),      # almoço / copa
+            (15 * 60, 20, 0.6),      # café da tarde
+            ("fim-30", 20, 1.0),     # limpeza
+        ],
+    },
+    "saude": {                       # UBS: pias, esterilização, limpeza frequente
+        "base": 0.7,
+        "picos": [
+            ("inicio+30", 20, 1.2),  # abertura e triagem
+            (10 * 60, 40, 0.6),      # atendimentos da manhã
+            (13 * 60, 30, 0.8),      # turno da tarde
+            ("fim-30", 25, 1.2),     # limpeza e desinfecção
+        ],
+    },
+    "esporte": {                     # ginásio: vestiários e chuveiros
+        "base": 0.3,
+        "picos": [
+            (9 * 60, 60, 0.8),       # treinos da manhã
+            (19 * 60, 60, 2.0),      # treinos da noite (chuveiros)
+            (21 * 60, 30, 1.2),      # fim dos treinos
+            ("fim-20", 15, 1.0),     # limpeza
+        ],
+    },
+    "cultura": {                     # centro cultural, biblioteca
+        "base": 0.4,
+        "picos": [
+            (12 * 60, 30, 0.8),      # almoço
+            (15 * 60, 30, 0.6),      # eventos da tarde
+            ("fim-30", 20, 1.0),     # limpeza
+        ],
+    },
+    "assistencia": {                 # CRAS, centros de convivência
+        "base": 0.4,
+        "picos": [
+            ("inicio+30", 20, 0.8),  # abertura
+            (12 * 60, 30, 1.0),      # almoço / lanche
+            ("fim-30", 20, 0.8),     # limpeza
+        ],
+    },
 }
 
 
@@ -122,6 +168,7 @@ class Predio:
     fim_min: int
     media_diaria: float
     total_litros: float
+    todos_os_dias: bool = False      # dias_uso == "todos" (abre no fim de semana)
     vazao_lpm: float = 0.0
     registro_aberto: bool = True
     cenario: str | None = None
@@ -154,13 +201,30 @@ class Predio:
 
     def vazao_esperada(self, agora: datetime) -> float:
         """Vazão média esperada (L/min) para o horário — sem ruído e sem vazamentos."""
-        if agora.weekday() >= 5:  # sábado/domingo: prédio fechado
+        if agora.weekday() >= 5 and not self.todos_os_dias:  # fim de semana: fechado
             return 0.0
         return self.peso(agora.hour * 60 + agora.minute + agora.second / 60) * self.escala
 
     def em_horario(self, agora: datetime) -> bool:
         m = agora.hour * 60 + agora.minute
-        return agora.weekday() < 5 and self.inicio_min <= m < self.fim_min
+        return (self.todos_os_dias or agora.weekday() < 5) and self.inicio_min <= m < self.fim_min
+
+
+def predio_do_cadastro(p: dict, total_litros: float = 0.0) -> Predio:
+    """Cria o Predio simulado a partir de um item de dados/predios.json."""
+    ini, fim = p["horario_uso"].split("-")
+    predio = Predio(
+        id=p["id"],
+        nome=p["nome"],
+        tipo=p["tipo"],
+        inicio_min=hhmm_para_minutos(ini),
+        fim_min=hhmm_para_minutos(fim),
+        media_diaria=float(p["media_diaria_litros"]),
+        total_litros=total_litros,
+        todos_os_dias=p.get("dias_uso", "uteis") == "todos",
+    )
+    predio.preparar_perfil()
+    return predio
 
 
 class Simulador:
@@ -180,26 +244,16 @@ class Simulador:
 
     # ---------------------------------------------------------------- cadastro
     def _carregar_predios(self) -> dict[str, Predio]:
-        with open(RAIZ / "dados" / "escolas.json", encoding="utf-8") as f:
+        with open(RAIZ / "dados" / "predios.json", encoding="utf-8") as f:
             cadastro = json.load(f)["predios"]
         predios = {}
         for p in cadastro:
             if not p["ativo"]:
                 continue  # prédio desativado não tem hidrômetro publicando
-            ini, fim = p["horario_uso"].split("-")
             rng = random.Random(p["id"])  # leitura inicial estável por prédio
-            predio = Predio(
-                id=p["id"],
-                nome=p["nome"],
-                tipo=p["tipo"],
-                inicio_min=hhmm_para_minutos(ini),
-                fim_min=hhmm_para_minutos(fim),
-                media_diaria=float(p["media_diaria_litros"]),
-                total_litros=round(rng.uniform(100_000, 900_000), 1),
-            )
-            predio.preparar_perfil()
+            predio = predio_do_cadastro(p, round(rng.uniform(100_000, 900_000), 1))
             predios[predio.id] = predio
-        print(f"[OK] {len(predios)} prédios ativos carregados de dados/escolas.json")
+        print(f"[OK] {len(predios)} prédios ativos carregados de dados/predios.json")
         return predios
 
     # -------------------------------------------------------------------- MQTT

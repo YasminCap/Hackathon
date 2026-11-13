@@ -8,7 +8,7 @@ Regras (ver CLAUDE.md):
   1. Fora do horário de uso: fluxo contínuo > 0 por mais de LIMITE_FLUXO_CONTINUO_MIN
      → "vazamento".
   2. No horário de uso: litros da última janela (JANELA_EXCESSO_MIN) > FATOR_EXCESSO ×
-     média histórica da mesma faixa de horário da própria escola (faixas de 15 min) e
+     média histórica da mesma faixa de horário do próprio prédio (faixas de 15 min) e
      excesso ≥ MIN_EXCESSO_LPM → "consumo_excessivo".
 
 Ciclo de vida do alerta:
@@ -45,8 +45,8 @@ def _minutos(texto: str) -> int:
 
 
 def em_horario(predio: dict, t: datetime) -> bool:
-    """Dia útil e dentro do horario_uso do prédio."""
-    if t.weekday() >= 5:
+    """Dia de funcionamento (dias_uso: "uteis" ou "todos") e dentro do horario_uso."""
+    if t.weekday() >= 5 and predio.get("dias_uso", "uteis") != "todos":
         return False
     ini, fim = (_minutos(x) for x in predio["horario_uso"].split("-"))
     return ini <= t.hour * 60 + t.minute < fim

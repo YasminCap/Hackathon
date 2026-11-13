@@ -53,7 +53,7 @@
     <!-- 2. Teste manual -->
     <section class="bg-white rounded-2xl shadow-sm p-5">
       <h2 class="text-lg font-semibold mb-3">Ou monte seu próprio teste</h2>
-      <label class="block text-sm font-medium text-slate-600 mb-1" for="escola">1. Qual escola?</label>
+      <label class="block text-sm font-medium text-slate-600 mb-1" for="escola">1. Qual prédio?</label>
       <select id="escola" class="w-full border border-slate-300 rounded-lg px-3 py-2 mb-4 bg-white"></select>
       <div class="text-sm font-medium text-slate-600 mb-1">2. Qual problema?</div>
       <div id="problemas" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
@@ -73,7 +73,7 @@
 
     <!-- 4. Situação -->
     <section class="bg-white rounded-2xl shadow-sm">
-      <h2 class="font-semibold px-5 pt-4 pb-2">Como estão as escolas agora</h2>
+      <h2 class="font-semibold px-5 pt-4 pb-2">Como estão os prédios agora</h2>
       <ul id="lista" class="divide-y divide-slate-100"></ul>
     </section>
 
@@ -84,6 +84,7 @@
   <div id="aviso" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow-lg"></div>
 
 <script>
+const ICONES = { escola: "🏫", cmei: "🧸", administrativo: "🏛️", saude: "🏥", esporte: "🏀", cultura: "🎭", assistencia: "🤝" };
 const PROBLEMAS = {
   torneira:     { icone: "🚰", nome: "Torneira aberta" },
   descarga:     { icone: "🚽", nome: "Descarga vazando" },
@@ -112,7 +113,7 @@ async function post(url) {
 }
 
 async function demonstracao() {
-  // só leva para a madrugada se alguma escola estiver em aula (evita pular um dia inteiro
+  // só leva para a madrugada se algum prédio estiver aberto (evita pular um dia inteiro
   // quando já é noite — o alerta ficaria com uma duração enorme)
   if (estado?.predios.some(p => p.em_horario)) await post("/api/madrugada");
   if (await post("/api/cenario/escola1/torneira"))
@@ -152,8 +153,8 @@ function marcarProblemaAtivo() {
 function situacao(p) {
   if (p.registro === "fechado") return { cor: "bg-blue-600", texto: "Água cortada" };
   if (p.cenario) return { cor: "bg-red-600", texto: PROBLEMAS[p.cenario].nome };
-  return p.em_horario ? { cor: "bg-emerald-500", texto: "Normal (em aula)" }
-                      : { cor: "bg-slate-300", texto: "Fechada" };
+  return p.em_horario ? { cor: "bg-emerald-500", texto: "Normal (aberto)" }
+                      : { cor: "bg-slate-300", texto: "Fechado" };
 }
 
 function atualizarLinha(p) {
@@ -161,7 +162,7 @@ function atualizarLinha(p) {
     const li = document.createElement("li");
     li.className = "px-5 py-2.5 flex items-center gap-3 text-sm";
     li.innerHTML = `<span data-bolinha class="w-2.5 h-2.5 rounded-full shrink-0"></span>
-      <span class="font-medium truncate">${p.nome}</span>
+      <span class="font-medium truncate">${ICONES[p.tipo] || "🏢"} ${p.nome}</span>
       <span data-situacao class="text-slate-500 truncate"></span>
       <span data-vazao class="ml-auto tabular-nums text-slate-600 whitespace-nowrap"></span>
       <button data-consertar class="hidden text-emerald-700 hover:underline whitespace-nowrap">🔧 consertar</button>`;
@@ -172,7 +173,7 @@ function atualizarLinha(p) {
       vazao: li.querySelector("[data-vazao]"), consertar: li.querySelector("[data-consertar]"),
     };
     const opt = document.createElement("option");
-    opt.value = p.id; opt.textContent = p.nome;
+    opt.value = p.id; opt.textContent = `${ICONES[p.tipo] || "🏢"} ${p.nome}`;
     document.getElementById("escola").appendChild(opt);
   }
   const l = linhas[p.id], s = situacao(p);
@@ -187,12 +188,11 @@ async function atualizar() {
   try {
     estado = await (await fetch("/api/estado")).json();
     const [dia, , hora] = estado.relogio_legivel.split(" ");
-    const h = Number(hora.slice(0, 2));
-    const fds = dia === "sáb" || dia === "dom";
     document.getElementById("relogio").textContent = `${DIAS[dia] || dia}, ${hora}`;
-    document.getElementById("periodo").textContent =
-      fds ? "· fim de semana, escolas fechadas"
-          : (h < 6 || h >= 19) ? "· madrugada, escolas fechadas" : "· horário de aula";
+    const abertos = estado.predios.filter(p => p.em_horario).length;
+    document.getElementById("periodo").textContent = abertos
+      ? `· ${abertos} de ${estado.predios.length} prédios abertos`
+      : "· todos os prédios fechados";
     estado.predios.forEach(atualizarLinha);
     marcarProblemaAtivo();
   } catch {

@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS comandos (
 CREATE INDEX IF NOT EXISTS ix_comandos_disp ON comandos (dispositivo, id);
 
 -- Consumo em faixas de 15 min de semanas anteriores (SIMULADO, gerado por
--- simulador/gerar_historico.py). É a "média da mesma faixa da própria escola" usada na
+-- simulador/gerar_historico.py). É a "média da mesma faixa do próprio prédio" usada na
 -- regra de consumo excessivo. Faixas de 15 min (e não de 1 h) acompanham bem a abertura
 -- e o fechamento do prédio — com hora cheia, a janela perto desses horários dava falso alarme.
 CREATE TABLE IF NOT EXISTS consumo_historico (

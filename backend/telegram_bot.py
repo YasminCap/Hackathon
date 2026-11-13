@@ -152,7 +152,7 @@ class NotificadorTelegram:
     async def _cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_id = update.effective_chat.id
         if self._autorizado(update):
-            texto = "💧 Olho d'Água: este chat recebe os alertas de vazamento das escolas e CMEIs."
+            texto = "💧 Olho d'Água: este chat recebe os alertas de vazamento dos prédios municipais."
         else:
             texto = (f"💧 Olho d'Água\nO id deste chat é <code>{chat_id}</code>.\n"
                      "Para receber alertas, coloque esse número em TELEGRAM_CHAT_ID no .env e reinicie o backend.")

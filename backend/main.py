@@ -45,7 +45,7 @@ from .telegram_bot import NotificadorTelegram
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-PREDIOS = carregar_predios()  # cadastro SIMULADO (dados/escolas.json)
+PREDIOS = carregar_predios()  # cadastro SIMULADO (dados/predios.json)
 IDS_ATIVOS = {pid for pid, p in PREDIOS.items() if p["ativo"]}
 
 mqtt_cliente = ClienteMQTT(IDS_ATIVOS)
@@ -86,7 +86,7 @@ async def ciclo_de_vida(app: FastAPI):
 
 app = FastAPI(
     title="Olho d'Água — API",
-    description="Monitoramento de água das escolas municipais e CMEIs de Londrina. "
+    description="Monitoramento de água dos prédios municipais de Londrina. "
                 "Protótipo: todos os dados são SIMULADOS.",
     lifespan=ciclo_de_vida,
 )
@@ -221,7 +221,7 @@ def pagina_inicial():
     )
 
 
-# Demais arquivos do painel (app.js, guardias.html...) — montado por último
+# Demais arquivos do painel (app.js...) — montado por último
 app.mount("/", StaticFiles(directory=PASTA_PAINEL, html=True), name="painel")
 
 

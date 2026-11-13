@@ -58,6 +58,6 @@ LACUNA_MAX_MIN = 15
 
 
 def carregar_predios() -> dict[str, dict]:
-    """Cadastro de prédios (dados/escolas.json — SIMULADO), indexado por id."""
-    with open(RAIZ / "dados" / "escolas.json", encoding="utf-8") as f:
+    """Cadastro de prédios (dados/predios.json — SIMULADO), indexado por id."""
+    with open(RAIZ / "dados" / "predios.json", encoding="utf-8") as f:
         return {p["id"]: p for p in json.load(f)["predios"]}

@@ -1,6 +1,7 @@
 # Olho d'Água
 
-Monitoramento em tempo real da água das escolas municipais e CMEIs de Londrina.
+Monitoramento em tempo real da água dos prédios municipais de Londrina: escolas, CMEIs,
+secretarias, UBS, esporte, cultura e assistência social.
 Projeto do SmartCities Hackathon Londrina 2026 — tema: Transformação Digital na Gestão Pública.
 
 > Protótipo de software: o hidrômetro é **simulado**, no mesmo contrato MQTT que um ESP32 real usaria.
@@ -23,7 +24,7 @@ python teste_mqtt.py     # teste de ida e volta no broker público
 .venv\Scripts\python.exe simulador\simulador.py --madrugada  # começa às 01:00 de um dia útil
 ```
 
-- Publica `hidrometro/<id>/leitura` a cada 2 s para os prédios ativos de `dados/escolas.json`.
+- Publica `hidrometro/<id>/leitura` a cada 2 s para os prédios ativos de `dados/predios.json`.
 - Obedece `hidrometro/<id>/comando` (`fechar_registro` / `abrir_registro`).
 - Painel de controle em http://127.0.0.1:8001: injetar vazamento (descarga, boia, torneira,
   cano rompido), consertar, abrir/fechar registro, ir para a madrugada, adiantar o relógio.
@@ -47,7 +48,7 @@ O backend avalia as leituras a cada 2 s (no relógio simulado):
 
 - **Vazamento** — fora do horário de uso, fluxo contínuo > 0 por mais de 30 min (10 com `MODO_DEMO=1`).
 - **Consumo excessivo** — no horário de uso, litros da última hora > 2× a média da mesma faixa
-  de horário da própria escola (janela de 20 min com `MODO_DEMO=1`).
+  de horário do próprio prédio (janela de 20 min com `MODO_DEMO=1`).
 - Causa apresentada como **provável** (pela vazão), 1 alerta ativo por prédio, aviso de
   **resolvido** quando o fluxo zera e cooldown antes de um novo alerta.
 
@@ -82,5 +83,5 @@ Atualiza sozinho a cada 2 s.
 backend/    API FastAPI, cliente MQTT, banco, detecção, auditor, bot Telegram, laudo
 simulador/  simulador dos hidrômetros + injeção de cenários
 painel/     painel web (HTML + JS)
-dados/      escolas.json e faturas.json (simulados)
+dados/      predios.json e faturas.json (simulados)
 ```

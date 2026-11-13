@@ -25,6 +25,18 @@ const SITUACOES = {
 };
 const LEGENDA = ["alerta", "fora", "fechado", "uso", "parado", "inativo"];
 
+// Tipos de prédio do cadastro (dados/predios.json)
+const TIPOS = {
+  escola:         { icone: "🏫", nome: "Escola municipal",          curto: "Escola" },
+  cmei:           { icone: "🧸", nome: "CMEI (educação infantil)",  curto: "CMEI" },
+  administrativo: { icone: "🏛️", nome: "Secretaria / administrativo", curto: "Administrativo" },
+  saude:          { icone: "🏥", nome: "Unidade Básica de Saúde",   curto: "UBS" },
+  esporte:        { icone: "🏀", nome: "Esporte",                   curto: "Esporte" },
+  cultura:        { icone: "🎭", nome: "Cultura",                   curto: "Cultura" },
+  assistencia:    { icone: "🤝", nome: "Assistência social",        curto: "Assistência" },
+};
+const tipo = p => TIPOS[p.tipo] || { icone: "🏢", nome: p.tipo, curto: p.tipo };
+
 let selecionado = null;
 let ultimosPredios = [];
 
@@ -54,7 +66,7 @@ function emHorario(predio) {
   const [data, h] = predio.ultima_leitura.split(" ");
   const [a, m, d] = data.split("-").map(Number);
   const diaSemana = new Date(a, m - 1, d).getDay();   // 0 = domingo, 6 = sábado
-  if (diaSemana === 0 || diaSemana === 6) return false;
+  if ((diaSemana === 0 || diaSemana === 6) && predio.dias_uso !== "todos") return false;
   const minutos = s => { const [hh, mm] = s.split(":").map(Number); return hh * 60 + mm; };
   const [ini, fim] = predio.horario_uso.split("-").map(minutos);
   const agora = minutos(h);
@@ -127,7 +139,7 @@ function atualizarLista(predios) {
       li.innerHTML = `
         <span data-bolinha class="w-2.5 h-2.5 rounded-full shrink-0"></span>
         <div class="min-w-0">
-          <div class="text-sm font-medium truncate">${esc(p.nome)}</div>
+          <div class="text-sm font-medium truncate">${tipo(p).icone} ${esc(p.nome)}</div>
           <div class="text-xs text-slate-500" data-detalhe></div>
         </div>
         <div class="ml-auto text-right tabular-nums text-sm" data-vazao></div>`;
@@ -144,7 +156,7 @@ function atualizarLista(predios) {
     const sit = situacao(p);
     item.li.classList.toggle("bg-sky-50", p.id === selecionado);
     item.bolinha.style.background = SITUACOES[sit].cor;
-    item.detalhe.textContent = `${p.tipo === "cmei" ? "CMEI" : "Escola"} · ${p.regiao || ""} · ${SITUACOES[sit].texto}`;
+    item.detalhe.textContent = `${tipo(p).curto} · ${p.regiao || ""} · ${SITUACOES[sit].texto}`;
     item.vazao.textContent = p.vazao_lpm != null ? `${fmt(p.vazao_lpm, 1)} L/min` : "—";
     item.vazao.className = "ml-auto text-right tabular-nums text-sm " +
       (sit === "alerta" ? "text-red-600 font-semibold" : sit === "fora" ? "text-amber-600 font-semibold" : "text-slate-600");
@@ -246,12 +258,12 @@ function atualizarDetalhe() {
   const p = ultimosPredios.find(x => x.id === selecionado);
   if (!p) return;
   const sit = situacao(p);
-  document.getElementById("titulo-predio").textContent = p.nome;
-  document.getElementById("sub-predio").textContent =
-    `${p.tipo === "cmei" ? "CMEI (educação infantil)" : "Escola municipal"} · região ${p.regiao || "—"}`;
+  document.getElementById("titulo-predio").textContent = `${tipo(p).icone} ${p.nome}`;
+  document.getElementById("sub-predio").textContent = `${tipo(p).nome} · região ${p.regiao || "—"}`;
   document.getElementById("status-predio").innerHTML = selo(sit);
   document.getElementById("info-vazao").textContent = p.vazao_lpm != null ? `${fmt(p.vazao_lpm, 1)} L/min` : "—";
-  document.getElementById("info-horario").textContent = `${p.horario_uso.replace("-", " às ")}`;
+  document.getElementById("info-horario").textContent =
+    `${p.horario_uso.replace("-", " às ")} · ${p.dias_uso === "todos" ? "todos os dias" : "seg a sex"}`;
   document.getElementById("info-media").textContent = p.ativo ? `${fmt(p.media_diaria_litros, 0)} L` : "—";
 
   const acoes = document.getElementById("acoes-predio");
