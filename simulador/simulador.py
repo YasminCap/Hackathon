@@ -366,7 +366,9 @@ def criar_app(sim: Simulador) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     def painel():
-        return (Path(__file__).parent / "painel_simulador.html").read_text(encoding="utf-8")
+        html = (Path(__file__).parent / "painel_simulador.html").read_text(encoding="utf-8")
+        # no-cache: o navegador sempre pega a versão mais nova da tela
+        return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
     @app.get("/api/estado")
     def estado():

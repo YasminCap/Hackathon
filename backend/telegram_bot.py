@@ -62,8 +62,9 @@ def texto_alerta(evento: dict) -> str:
             + RODAPE
         )
     # resolvido
-    duracao = (datetime.strptime(a["resolvido_sim"], "%Y-%m-%d %H:%M:%S")
-               - datetime.strptime(a["inicio_sim"], "%Y-%m-%d %H:%M:%S")).total_seconds() / 60
+    # max(0, ...): se o simulador for reiniciado, o relógio pode "voltar" no tempo
+    duracao = max(0.0, (datetime.strptime(a["resolvido_sim"], "%Y-%m-%d %H:%M:%S")
+                        - datetime.strptime(a["inicio_sim"], "%Y-%m-%d %H:%M:%S")).total_seconds() / 60)
     texto = (
         f"✅ <b>Resolvido</b> — {nome}\n"
         f"{html.escape(a['motivo_resolucao'])} às {_hora(a['resolvido_sim'])}.\n"

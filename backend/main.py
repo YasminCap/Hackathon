@@ -92,6 +92,15 @@ app = FastAPI(
 )
 
 
+@app.middleware("http")
+async def sem_cache(request, call_next):
+    """Faz o navegador sempre conferir se há versão nova do painel e da API
+    (sem isso, depois de uma atualização ele pode continuar mostrando a tela antiga)."""
+    resposta = await call_next(request)
+    resposta.headers["Cache-Control"] = "no-cache"
+    return resposta
+
+
 # --------------------------------------------------------------------- apoio
 def _segundos_desde(utc_iso: str) -> float:
     instante = datetime.fromisoformat(utc_iso.replace("Z", "+00:00"))

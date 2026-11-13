@@ -136,19 +136,30 @@ def leituras_recentes(dispositivo: str, limite: int) -> list[dict]:
 
 
 def consumo_por_hora(dispositivo: str, horas: int) -> list[dict]:
-    """Litros somados por hora (horário de Londrina) nas últimas `horas` horas simuladas."""
+    """Litros somados por hora (horário de Londrina) nas `horas` horas simuladas que
+    terminam na leitura MAIS RECENTE do prédio. Usar a mais recente (e não a maior data)
+    evita misturar dias antigos quando o simulador é reiniciado com o relógio em outra data."""
     with conexao() as con:
+        ultima = con.execute(
+            "SELECT ts_local FROM leituras WHERE dispositivo = ? ORDER BY id DESC LIMIT 1",
+            (dispositivo,),
+        ).fetchone()
+        if not ultima:
+            return []
         linhas = con.execute(
             """SELECT substr(ts_local, 1, 13) || ':00' AS hora,
                       ROUND(SUM(litros), 2)        AS litros,
                       ROUND(MAX(vazao_lpm), 2)     AS vazao_max_lpm,
                       COUNT(*)                     AS leituras
-               FROM leituras WHERE dispositivo = ?
+               FROM leituras
+               WHERE dispositivo = ?
+                 AND ts_local >  datetime(?, ?)
+                 AND ts_local <= ?
                GROUP BY substr(ts_local, 1, 13)
-               ORDER BY hora DESC LIMIT ?""",
-            (dispositivo, horas),
+               ORDER BY hora""",
+            (dispositivo, ultima["ts_local"], f"-{int(horas)} hours", ultima["ts_local"]),
         ).fetchall()
-    return [dict(r) for r in reversed(linhas)]
+    return [dict(r) for r in linhas]
 
 
 def contar_leituras() -> int:

@@ -5,110 +5,136 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Olho d'Água — Painel</title>
 <!--
-  Painel da Prefeitura: mapa dos prédios + vazão em tempo real.
-  HTML + JS puro, Tailwind via CDN, Chart.js e Leaflet. Atualiza por polling a cada 2 s (app.js).
+  Painel da prefeitura: resumo, mapa, alertas e detalhe de cada unidade.
+  HTML + JS puro, Tailwind via CDN, Chart.js e Leaflet. Atualiza a cada 2 s (app.js).
   Todos os dados exibidos são SIMULADOS.
 -->
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-  #mapa { height: 420px; }
+  body { font-family: "Inter", system-ui, sans-serif; }
   .leaflet-container { font: inherit; }
+  /* mapa mais suave, para os pontos coloridos se destacarem */
+  .leaflet-tile-pane { filter: saturate(.35) brightness(1.06) contrast(.92); }
+  .cartao { background: #fff; border-radius: 1rem; box-shadow: 0 1px 2px rgb(15 23 42 / .06); border: 1px solid #e2e8f0; }
 </style>
 </head>
-<body class="bg-slate-100 text-slate-800">
+<body class="bg-slate-50 text-slate-800">
 
   <!-- Cabeçalho -->
-  <header class="bg-sky-800 text-white">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
-      <h1 class="text-xl font-bold">💧 Olho d'Água</h1>
-      <span class="text-sky-100 text-sm">Água das escolas municipais e CMEIs de Londrina</span>
-      <span class="bg-amber-300 text-amber-950 text-xs font-semibold px-2 py-1 rounded">DADOS SIMULADOS</span>
-      <div class="ml-auto flex items-center gap-4 text-sm">
-        <span id="relogio" title="Relógio simulado (horário de Londrina)">🕒 --</span>
-        <span id="conexao">⚪ conectando...</span>
+  <header class="bg-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div class="w-10 h-10 rounded-xl bg-sky-600 text-white grid place-items-center text-xl">💧</div>
+      <div>
+        <h1 class="text-lg font-bold leading-tight text-slate-900">Olho d'Água</h1>
+        <p class="text-xs text-slate-500">Monitoramento de água das escolas municipais e CMEIs de Londrina</p>
+      </div>
+      <div class="ml-auto flex flex-wrap items-center gap-2 text-xs">
+        <span id="relogio" class="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full">🕒 --</span>
+        <span id="conexao" class="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full">conectando…</span>
+        <span class="bg-amber-100 text-amber-800 font-semibold px-3 py-1.5 rounded-full">dados simulados</span>
       </div>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 py-4 space-y-4">
+  <main class="max-w-7xl mx-auto px-4 py-5 space-y-5">
 
-    <!-- Cartões de resumo -->
-    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <div class="bg-white rounded-lg shadow p-3">
-        <div class="text-xs text-slate-500">Prédios online</div>
-        <div id="c-online" class="text-2xl font-bold">--</div>
+    <!-- Números principais -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="cartao p-4 flex gap-3 items-start">
+        <div class="w-10 h-10 rounded-lg bg-sky-50 grid place-items-center text-lg shrink-0">🏫</div>
+        <div><div class="text-xs text-slate-500">Unidades online</div>
+          <div id="c-online" class="text-2xl font-bold text-slate-900">--</div>
+          <div class="text-xs text-slate-400">enviando leituras</div></div>
       </div>
-      <div class="bg-white rounded-lg shadow p-3">
-        <div class="text-xs text-slate-500">Vazão total agora</div>
-        <div id="c-vazao" class="text-2xl font-bold">--</div>
+      <div class="cartao p-4 flex gap-3 items-start">
+        <div class="w-10 h-10 rounded-lg bg-sky-50 grid place-items-center text-lg shrink-0">💧</div>
+        <div><div class="text-xs text-slate-500">Água passando agora</div>
+          <div id="c-vazao" class="text-2xl font-bold text-slate-900">--</div>
+          <div class="text-xs text-slate-400">soma de todas as unidades</div></div>
       </div>
-      <div class="bg-white rounded-lg shadow p-3">
-        <div class="text-xs text-slate-500">Alertas ativos</div>
-        <div id="c-alertas" class="text-2xl font-bold">--</div>
+      <div id="cartao-alertas" class="cartao p-4 flex gap-3 items-start">
+        <div class="w-10 h-10 rounded-lg bg-red-50 grid place-items-center text-lg shrink-0">🚨</div>
+        <div><div class="text-xs text-slate-500">Alertas ativos</div>
+          <div id="c-alertas" class="text-2xl font-bold text-slate-900">--</div>
+          <div id="c-alertas-dica" class="text-xs text-slate-400">&nbsp;</div></div>
       </div>
-      <div class="bg-white rounded-lg shadow p-3">
-        <div class="text-xs text-slate-500">Registros fechados</div>
-        <div id="c-fechados" class="text-2xl font-bold">--</div>
+      <div class="cartao p-4 flex gap-3 items-start">
+        <div class="w-10 h-10 rounded-lg bg-indigo-50 grid place-items-center text-lg shrink-0">🔒</div>
+        <div><div class="text-xs text-slate-500">Registros fechados</div>
+          <div id="c-fechados" class="text-2xl font-bold text-slate-900">--</div>
+          <div class="text-xs text-slate-400">água cortada a distância</div></div>
       </div>
     </section>
 
-    <!-- Alertas (detecção do backend) -->
-    <section class="bg-white rounded-lg shadow">
-      <div class="px-3 py-2 border-b flex items-center gap-2">
-        <h2 class="font-semibold">Alertas</h2>
-        <span id="telegram" class="text-xs text-slate-500"></span>
+    <!-- Mapa + alertas -->
+    <section class="grid lg:grid-cols-3 gap-5">
+      <div class="cartao lg:col-span-2 overflow-hidden">
+        <div class="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-100">
+          <h2 class="font-semibold text-slate-900">Mapa das unidades</h2>
+          <div id="legenda" class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500"></div>
+        </div>
+        <div id="mapa" class="h-[420px]"></div>
       </div>
-      <ul id="alertas" class="divide-y max-h-56 overflow-y-auto text-sm">
-        <li class="px-3 py-2 text-slate-500">Nenhum alerta até agora.</li>
-      </ul>
+
+      <div class="cartao flex flex-col">
+        <div class="px-4 py-3 flex items-center gap-2 border-b border-slate-100">
+          <h2 class="font-semibold text-slate-900">Alertas</h2>
+          <span id="telegram" class="ml-auto text-xs px-2 py-1 rounded-full"></span>
+        </div>
+        <ul id="alertas" class="flex-1 overflow-y-auto max-h-[420px] p-3 space-y-2"></ul>
+      </div>
     </section>
 
-    <!-- Mapa + lista -->
-    <section class="grid lg:grid-cols-5 gap-4">
-      <div class="lg:col-span-3 bg-white rounded-lg shadow overflow-hidden">
-        <div id="mapa"></div>
-        <div class="px-3 py-2 text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
-          <span><span class="inline-block w-3 h-3 rounded-full bg-red-600 align-middle"></span> alerta</span>
-          <span><span class="inline-block w-3 h-3 rounded-full bg-emerald-500 align-middle"></span> em uso</span>
-          <span><span class="inline-block w-3 h-3 rounded-full bg-sky-300 align-middle"></span> parado</span>
-          <span><span class="inline-block w-3 h-3 rounded-full bg-orange-500 align-middle"></span> fluxo fora do horário</span>
-          <span><span class="inline-block w-3 h-3 rounded-full bg-blue-800 align-middle"></span> registro fechado</span>
-          <span><span class="inline-block w-3 h-3 rounded-full bg-slate-400 align-middle"></span> sem sinal / desativado</span>
+    <!-- Unidades + detalhe -->
+    <section class="grid lg:grid-cols-3 gap-5">
+      <div class="cartao overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100">
+          <h2 class="font-semibold text-slate-900">Unidades</h2>
+          <p class="text-xs text-slate-500">Clique para ver os detalhes</p>
+        </div>
+        <ul id="lista" class="divide-y divide-slate-100 max-h-[520px] overflow-y-auto"></ul>
+      </div>
+
+      <div class="cartao lg:col-span-2 p-4 space-y-4">
+        <div class="flex flex-wrap items-start gap-3">
+          <div>
+            <h2 id="titulo-predio" class="text-lg font-semibold text-slate-900">Selecione uma unidade</h2>
+            <p id="sub-predio" class="text-xs text-slate-500"></p>
+          </div>
+          <span id="status-predio"></span>
+          <div class="ml-auto" id="acoes-predio"></div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 text-sm">
+          <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Água agora</div><div id="info-vazao" class="font-semibold">--</div></div>
+          <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Horário de uso</div><div id="info-horario" class="font-semibold">--</div></div>
+          <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Média por dia útil</div><div id="info-media" class="font-semibold">--</div></div>
+        </div>
+        <div class="grid md:grid-cols-2 gap-5">
+          <div>
+            <div class="text-sm font-medium text-slate-700">Água passando (litros por minuto)</div>
+            <div class="text-xs text-slate-400 mb-2">últimas 6 horas da simulação</div>
+            <div class="h-56"><canvas id="grafico-vazao"></canvas></div>
+          </div>
+          <div>
+            <div class="text-sm font-medium text-slate-700">Consumo por hora (litros)</div>
+            <div class="text-xs text-slate-400 mb-2">últimas 24 horas da simulação</div>
+            <div class="h-56"><canvas id="grafico-horas"></canvas></div>
+          </div>
         </div>
       </div>
-      <div class="lg:col-span-2 bg-white rounded-lg shadow overflow-hidden">
-        <h2 class="px-3 py-2 font-semibold border-b">Prédios</h2>
-        <ul id="lista" class="divide-y max-h-[460px] overflow-y-auto"></ul>
-      </div>
     </section>
 
-    <!-- Gráficos do prédio selecionado -->
-    <section class="bg-white rounded-lg shadow p-3">
-      <div class="flex flex-wrap items-center gap-3 mb-2">
-        <h2 class="font-semibold" id="titulo-predio">Selecione um prédio</h2>
-        <span id="status-predio" class="text-xs"></span>
-        <div class="ml-auto" id="acoes-predio"></div>
-      </div>
-      <div class="grid lg:grid-cols-2 gap-4">
-        <div>
-          <div class="text-xs text-slate-500 mb-1">Vazão (L/min) — últimas 6 h simuladas</div>
-          <div class="h-64"><canvas id="grafico-vazao"></canvas></div>
-        </div>
-        <div>
-          <div class="text-xs text-slate-500 mb-1">Consumo por hora (litros) — últimas 24 h simuladas</div>
-          <div class="h-64"><canvas id="grafico-horas"></canvas></div>
-        </div>
-      </div>
-    </section>
-
-    <footer class="text-xs text-slate-500 pb-4">
-      Protótipo do SmartCities Hackathon Londrina 2026. Hidrômetros, nomes e consumos são simulados.
+    <footer class="text-xs text-slate-400 text-center pb-4">
+      Protótipo do SmartCities Hackathon Londrina 2026 · hidrômetros, nomes e consumos são simulados.
     </footer>
   </main>
 
-<script src="app.js"></script>
+<!-- ?v=: mude o número quando alterar o app.js, para o navegador não usar a versão antiga -->
+<script src="app.js?v=3"></script>
 </body>
 </html>

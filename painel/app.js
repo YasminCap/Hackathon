@@ -2,9 +2,10 @@
  * app.js — lógica do painel do Olho d'Água.
  *
  * A cada 2 s busca na API:
- *   /api/resumo   → cartões e relógio simulado
- *   /api/predios  → mapa (Leaflet) e lista lateral
- *   /api/predios/<id>/leituras e /consumo_horario → gráficos (Chart.js) do prédio selecionado
+ *   /api/resumo   → números do topo e relógio simulado
+ *   /api/predios  → mapa (Leaflet) e lista de unidades
+ *   /api/alertas  → lista de alertas
+ *   /api/predios/<id>/leituras e /consumo_horario → gráficos (Chart.js) da unidade selecionada
  *
  * Todos os dados são SIMULADOS.
  */
@@ -12,19 +13,19 @@
 const INTERVALO_MS = 2000;
 const LONDRINA = [-23.31, -51.16];
 
-// Cores por situação (iguais à legenda do mapa)
+// Situação de cada unidade: cor (mapa e bolinhas), texto e classes do selo
 const SITUACOES = {
-  alerta:   { cor: "#dc2626", texto: "ALERTA" },
-  uso:     { cor: "#10b981", texto: "em uso" },
-  parado:   { cor: "#7dd3fc", texto: "parado" },
-  fora:     { cor: "#f97316", texto: "fluxo fora do horário" },
-  fechado:  { cor: "#1e40af", texto: "registro fechado" },
-  semsinal: { cor: "#94a3b8", texto: "sem sinal" },
-  inativo:  { cor: "#94a3b8", texto: "desativado" },
+  alerta:   { cor: "#dc2626", texto: "Alerta",                selo: "bg-red-100 text-red-700" },
+  fora:     { cor: "#f59e0b", texto: "Em observação",         selo: "bg-amber-100 text-amber-800" },
+  fechado:  { cor: "#3730a3", texto: "Água cortada",          selo: "bg-indigo-100 text-indigo-800" },
+  uso:      { cor: "#0ea5e9", texto: "Em uso",                selo: "bg-sky-100 text-sky-800" },
+  parado:   { cor: "#94a3b8", texto: "Sem consumo",           selo: "bg-slate-100 text-slate-600" },
+  semsinal: { cor: "#cbd5e1", texto: "Sem sinal",             selo: "bg-slate-100 text-slate-500" },
+  inativo:  { cor: "#e2e8f0", texto: "Desativada",            selo: "bg-slate-100 text-slate-400" },
 };
+const LEGENDA = ["alerta", "fora", "fechado", "uso", "parado", "inativo"];
 
-let selecionado = null;         // id do prédio aberto nos gráficos
-const marcadores = {};          // id → L.circleMarker
+let selecionado = null;
 let ultimosPredios = [];
 
 // ------------------------------------------------------------------ utilidades
@@ -37,6 +38,10 @@ function fmt(n, casas = 1) {
   return Number(n).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
 }
 
+function hora(ts) {  // '2026-11-13 01:58:00' → '13/11 01:58'
+  return ts ? `${ts.slice(8, 10)}/${ts.slice(5, 7)} ${ts.slice(11, 16)}` : "";
+}
+
 async function buscar(url, opcoes) {
   const r = await fetch(url, opcoes);
   if (!r.ok) throw new Error(`${url} → HTTP ${r.status}: ${await r.text()}`);
@@ -46,18 +51,18 @@ async function buscar(url, opcoes) {
 /** O horário da última leitura (Londrina, simulado) está dentro do horário de uso? */
 function emHorario(predio) {
   if (!predio.ultima_leitura) return false;
-  const [data, hora] = predio.ultima_leitura.split(" ");
+  const [data, h] = predio.ultima_leitura.split(" ");
   const [a, m, d] = data.split("-").map(Number);
   const diaSemana = new Date(a, m - 1, d).getDay();   // 0 = domingo, 6 = sábado
   if (diaSemana === 0 || diaSemana === 6) return false;
-  const minutos = s => { const [h, mi] = s.split(":").map(Number); return h * 60 + mi; };
+  const minutos = s => { const [hh, mm] = s.split(":").map(Number); return hh * 60 + mm; };
   const [ini, fim] = predio.horario_uso.split("-").map(minutos);
-  const agora = minutos(hora);
+  const agora = minutos(h);
   return agora >= ini && agora < fim;
 }
 
-/** Situação visual do prédio. "alerta" vem da detecção do backend; "fora" é só um destaque
- *  de vazão fora do horário que ainda não virou alerta (pode ser uso esporádico). */
+/** "alerta" vem da detecção do backend; "fora" (em observação) é água correndo fora do
+ *  horário que ainda não virou alerta — pode ser só um uso rápido. */
 function situacao(p) {
   if (!p.ativo) return "inativo";
   if (!p.online) return "semsinal";
@@ -67,10 +72,17 @@ function situacao(p) {
   return p.vazao_lpm > 0 ? "uso" : "parado";
 }
 
+function selo(sit) {
+  const s = SITUACOES[sit];
+  return `<span class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full ${s.selo}">
+    <span class="w-2 h-2 rounded-full" style="background:${s.cor}"></span>${s.texto}</span>`;
+}
+
 // ------------------------------------------------------------------------ mapa
-const mapa = L.map("mapa").setView(LONDRINA, 12);
+const mapa = L.map("mapa", { scrollWheelZoom: false }).setView(LONDRINA, 12);
+// OpenStreetMap (livre, sem chave). O CSS do index.html deixa as cores mais suaves.
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 18,
+  maxZoom: 19,
   attribution: "&copy; OpenStreetMap",
 }).addTo(mapa);
 
@@ -79,37 +91,43 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 new ResizeObserver(() => mapa.invalidateSize()).observe(document.getElementById("mapa"));
 window.addEventListener("load", () => mapa.invalidateSize());
 
+document.getElementById("legenda").innerHTML = LEGENDA.map(k =>
+  `<span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full" style="background:${SITUACOES[k].cor}"></span>${SITUACOES[k].texto}</span>`
+).join("");
+
+const marcadores = {};  // id → L.circleMarker
+
 function atualizarMapa(predios) {
   for (const p of predios) {
-    const s = SITUACOES[situacao(p)];
-    const raio = 8 + Math.min(14, Math.sqrt(p.vazao_lpm || 0) * 1.6); // maior = mais vazão
-    const popup = `<b>${esc(p.nome)}</b><br>${esc(s.texto)}<br>` +
-      (p.vazao_lpm != null ? `${fmt(p.vazao_lpm, 2)} L/min` : "—");
+    const sit = situacao(p);
+    const raio = sit === "alerta" ? 14 : 7 + Math.min(9, Math.sqrt(p.vazao_lpm || 0) * 1.2);
+    const popup = `<b>${esc(p.nome)}</b><br>${SITUACOES[sit].texto}` +
+      (p.vazao_lpm != null ? ` · ${fmt(p.vazao_lpm, 1)} L/min` : "");
     if (!marcadores[p.id]) {
-      marcadores[p.id] = L.circleMarker([p.lat, p.lon], { weight: 2, color: "#0f172a", fillOpacity: 0.9 })
-        .addTo(mapa)
+      marcadores[p.id] = L.circleMarker([p.lat, p.lon], { color: "#fff", weight: 2, fillOpacity: 0.95 })
+        .addTo(mapa).bindPopup(popup)
         .on("click", () => selecionar(p.id));
-      marcadores[p.id].bindPopup(popup);
     }
-    marcadores[p.id].setStyle({ fillColor: s.cor }).setRadius(raio).setPopupContent(popup);
+    marcadores[p.id].setStyle({ fillColor: SITUACOES[sit].cor }).setRadius(raio).setPopupContent(popup);
+    if (sit === "alerta") marcadores[p.id].bringToFront();
   }
 }
 
-// ---------------------------------------------------------------------- lista
+// ------------------------------------------------------------------- unidades
 // Cada item é criado UMA vez e depois só tem os textos atualizados: recriar a lista
 // inteira a cada 2 s faria cliques "sumirem" no meio da troca.
-const itensLista = {};  // id → { li, bolinha, detalhe, vazao }
+const itensLista = {};
 
 function atualizarLista(predios) {
   const ul = document.getElementById("lista");
   for (const p of predios) {
     if (!itensLista[p.id]) {
       const li = document.createElement("li");
-      li.className = "px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-slate-50";
+      li.className = "px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50 transition-colors";
       li.innerHTML = `
-        <span class="w-3 h-3 rounded-full shrink-0" data-bolinha></span>
+        <span data-bolinha class="w-2.5 h-2.5 rounded-full shrink-0"></span>
         <div class="min-w-0">
-          <div class="font-medium truncate">${esc(p.nome)}</div>
+          <div class="text-sm font-medium truncate">${esc(p.nome)}</div>
           <div class="text-xs text-slate-500" data-detalhe></div>
         </div>
         <div class="ml-auto text-right tabular-nums text-sm" data-vazao></div>`;
@@ -126,69 +144,85 @@ function atualizarLista(predios) {
     const sit = situacao(p);
     item.li.classList.toggle("bg-sky-50", p.id === selecionado);
     item.bolinha.style.background = SITUACOES[sit].cor;
-    item.detalhe.textContent = `${p.tipo.toUpperCase()} · ${p.regiao || ""} · ${SITUACOES[sit].texto}`;
-    item.vazao.textContent = p.vazao_lpm != null ? `${fmt(p.vazao_lpm, 2)} L/min` : "—";
-    item.vazao.classList.toggle("text-orange-600", sit === "fora");
-    item.vazao.classList.toggle("text-red-600", sit === "alerta");
-    item.vazao.classList.toggle("font-semibold", sit === "fora" || sit === "alerta");
+    item.detalhe.textContent = `${p.tipo === "cmei" ? "CMEI" : "Escola"} · ${p.regiao || ""} · ${SITUACOES[sit].texto}`;
+    item.vazao.textContent = p.vazao_lpm != null ? `${fmt(p.vazao_lpm, 1)} L/min` : "—";
+    item.vazao.className = "ml-auto text-right tabular-nums text-sm " +
+      (sit === "alerta" ? "text-red-600 font-semibold" : sit === "fora" ? "text-amber-600 font-semibold" : "text-slate-600");
   }
 }
 
 // -------------------------------------------------------------------- alertas
-function hora(ts) {  // '2026-11-13 01:58:00' → '13/11 01:58'
-  return ts ? `${ts.slice(8, 10)}/${ts.slice(5, 7)} ${ts.slice(11, 16)}` : "";
-}
+let assinaturaAlertas = null;  // só redesenha quando algo muda
 
-let assinaturaAlertas = "";  // só redesenha a lista quando algo mudou
-
-function atualizarAlertas(alertas) {
-  const assinatura = alertas.map(a => a.id + a.status).join("|");
+function atualizarAlertas(alertas, registros) {
+  const assinatura = alertas.map(a => a.id + a.status + (registros[a.dispositivo] || "")).join("|");
   if (assinatura === assinaturaAlertas) return;
   assinaturaAlertas = assinatura;
   const ul = document.getElementById("alertas");
   if (!alertas.length) {
-    ul.innerHTML = `<li class="px-3 py-2 text-slate-500">Nenhum alerta até agora.</li>`;
+    ul.innerHTML = `<li class="h-full grid place-items-center text-center py-10">
+      <div><div class="text-3xl">✅</div><div class="text-sm font-medium text-emerald-700 mt-2">Nenhum vazamento</div>
+      <div class="text-xs text-slate-400">Os alertas aparecem aqui automaticamente.</div></div></li>`;
     return;
   }
   ul.innerHTML = alertas.map(a => {
     const ativo = a.status === "ativo";
-    const icone = !ativo ? "✅" : a.tipo === "vazamento" ? "🚨" : "⚠️";
     const titulo = a.tipo === "vazamento" ? "Vazamento provável" : "Consumo excessivo";
-    const fim = ativo
-      ? `<span class="text-red-600 font-semibold">ATIVO</span> desde ${hora(a.inicio_sim)}`
-      : `resolvido ${hora(a.resolvido_sim)} (${esc(a.motivo_resolucao)}) · perda ≈ ${fmt(a.litros_perdidos, 0)} L`;
-    return `<li class="px-3 py-2 ${ativo ? "bg-red-50" : ""} cursor-pointer" data-predio="${esc(a.dispositivo)}">
-      <div>${icone} <b>${titulo}</b> — ${esc(a.nome)} · ${fmt(a.vazao_estimada, 1)} L/min</div>
-      <div class="text-xs text-slate-600">Provável causa: ${esc(a.provavel_causa)} · ${fim}</div>
+    const fechado = registros[a.dispositivo] === "fechado";
+    const botao = ativo && !fechado
+      ? `<button data-fechar="${esc(a.dispositivo)}" class="bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg">🔒 Fechar registro</button>`
+      : "";
+    if (ativo) {
+      return `<li data-predio="${esc(a.dispositivo)}" class="rounded-xl border border-red-200 bg-red-50 p-3 cursor-pointer">
+        <div class="flex items-center gap-2 text-sm font-semibold text-red-700">${a.tipo === "vazamento" ? "🚨" : "⚠️"} ${titulo}</div>
+        <div class="text-sm font-medium text-slate-900 mt-1">${esc(a.nome)}</div>
+        <div class="text-xs text-slate-600 mt-0.5">Provável causa: ${esc(a.provavel_causa)}</div>
+        <div class="text-xs text-slate-600">${fmt(a.vazao_estimada, 1)} L/min · desde ${hora(a.inicio_sim)}</div>
+        <div class="mt-2 flex items-center gap-2">${botao}${fechado ? `<span class="text-xs text-indigo-700">🔒 registro fechado — aguardando o fluxo zerar</span>` : ""}</div>
+      </li>`;
+    }
+    return `<li data-predio="${esc(a.dispositivo)}" class="rounded-xl border border-slate-200 p-3 cursor-pointer">
+      <div class="flex items-center gap-2 text-sm font-medium text-emerald-700">✅ Resolvido</div>
+      <div class="text-sm text-slate-800 mt-0.5">${esc(a.nome)}</div>
+      <div class="text-xs text-slate-500">${titulo.toLowerCase()} · ${esc(a.provavel_causa)}</div>
+      <div class="text-xs text-slate-500">${hora(a.resolvido_sim)} · perda estimada ≈ ${fmt(a.litros_perdidos, 0)} L</div>
     </li>`;
   }).join("");
 }
 
-// clique num alerta abre o prédio (delegação: a lista é redesenhada quando muda)
+// clique num alerta: o botão fecha o registro; o resto do cartão abre a unidade
 document.getElementById("alertas").addEventListener("click", e => {
+  const botao = e.target.closest("[data-fechar]");
+  if (botao) { comando(botao.dataset.fechar, "fechar_registro"); return; }
   const li = e.target.closest("[data-predio]");
   if (li) selecionar(li.dataset.predio);
 });
 
 // ------------------------------------------------------------------- gráficos
+Chart.defaults.font.family = "Inter, system-ui, sans-serif";
+Chart.defaults.color = "#64748b";
+
 const opcoesBase = {
   responsive: true,
   maintainAspectRatio: false,
   animation: false,
   plugins: { legend: { display: false } },
-  scales: { y: { beginAtZero: true } },
+  scales: {
+    y: { beginAtZero: true, grid: { color: "#f1f5f9" }, border: { display: false } },
+    x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+  },
 };
 
 const graficoVazao = new Chart(document.getElementById("grafico-vazao"), {
   type: "line",
-  data: { labels: [], datasets: [{ data: [], borderColor: "#0284c7", backgroundColor: "rgba(2,132,199,.15)",
-                                   fill: true, pointRadius: 0, borderWidth: 2, tension: 0.2 }] },
-  options: { ...opcoesBase, scales: { ...opcoesBase.scales, x: { ticks: { maxTicksLimit: 8 } } } },
+  data: { labels: [], datasets: [{ data: [], borderColor: "#0284c7", backgroundColor: "rgba(14,165,233,.12)",
+                                   fill: true, pointRadius: 0, borderWidth: 2, tension: 0.25 }] },
+  options: opcoesBase,
 });
 
 const graficoHoras = new Chart(document.getElementById("grafico-horas"), {
   type: "bar",
-  data: { labels: [], datasets: [{ data: [], backgroundColor: "#38bdf8" }] },
+  data: { labels: [], datasets: [{ data: [], backgroundColor: "#7dd3fc", borderRadius: 4 }] },
   options: opcoesBase,
 });
 
@@ -202,40 +236,47 @@ async function atualizarGraficos() {
   graficoVazao.data.datasets[0].data = serie.leituras.map(l => l.vazao_lpm);
   graficoVazao.update();
 
-  graficoHoras.data.labels = horas.horas.map(h => h.hora.slice(8, 10) + "/" + h.hora.slice(11, 13) + "h");
+  graficoHoras.data.labels = horas.horas.map(h => h.hora.slice(11, 13) + "h");
   graficoHoras.data.datasets[0].data = horas.horas.map(h => h.litros);
   graficoHoras.update();
 }
 
-function atualizarCabecalhoPredio() {
+// -------------------------------------------------------------------- detalhe
+function atualizarDetalhe() {
   const p = ultimosPredios.find(x => x.id === selecionado);
   if (!p) return;
-  const s = SITUACOES[situacao(p)];
+  const sit = situacao(p);
   document.getElementById("titulo-predio").textContent = p.nome;
-  document.getElementById("status-predio").innerHTML =
-    `<span class="px-2 py-0.5 rounded text-white" style="background:${s.cor}">${esc(s.texto)}</span>
-     <span class="text-slate-500 ml-2">uso: ${esc(p.horario_uso)} (dias úteis) · média ${fmt(p.media_diaria_litros, 0)} L/dia</span>`;
+  document.getElementById("sub-predio").textContent =
+    `${p.tipo === "cmei" ? "CMEI (educação infantil)" : "Escola municipal"} · região ${p.regiao || "—"}`;
+  document.getElementById("status-predio").innerHTML = selo(sit);
+  document.getElementById("info-vazao").textContent = p.vazao_lpm != null ? `${fmt(p.vazao_lpm, 1)} L/min` : "—";
+  document.getElementById("info-horario").textContent = `${p.horario_uso.replace("-", " às ")}`;
+  document.getElementById("info-media").textContent = p.ativo ? `${fmt(p.media_diaria_litros, 0)} L` : "—";
 
-  // Botão de registro (manual pelo painel; no passo 5 o mesmo comando sai do Telegram)
   const acoes = document.getElementById("acoes-predio");
-  if (!p.ativo) { acoes.innerHTML = ""; return; }
-  acoes.innerHTML = p.registro === "fechado"
-    ? `<button onclick="comando('abrir_registro')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-3 py-1.5 rounded">Reabrir registro</button>`
-    : `<button onclick="comando('fechar_registro')" class="bg-red-600 hover:bg-red-700 text-white text-sm px-3 py-1.5 rounded">Fechar registro</button>`;
+  const desejado = !p.ativo ? "" : p.registro === "fechado" ? "abrir" : "fechar";
+  if (acoes.dataset.estado === desejado) return;  // evita recriar o botão a cada 2 s
+  acoes.dataset.estado = desejado;
+  acoes.innerHTML = desejado === "abrir"
+    ? `<button onclick="comando(selecionado, 'abrir_registro')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg">🔓 Reabrir registro</button>`
+    : desejado === "fechar"
+      ? `<button onclick="comando(selecionado, 'fechar_registro')" class="bg-white border border-red-300 text-red-700 hover:bg-red-50 text-sm font-medium px-4 py-2 rounded-lg">🔒 Fechar registro</button>`
+      : "";
 }
 
 // --------------------------------------------------------------------- ações
 function selecionar(id) {
   selecionado = id;
   atualizarLista(ultimosPredios);
-  atualizarCabecalhoPredio();
+  atualizarDetalhe();
   atualizarGraficos().catch(console.error);
 }
 
-async function comando(acao) {
-  const p = ultimosPredios.find(x => x.id === selecionado);
+async function comando(predioId, acao) {
+  const p = ultimosPredios.find(x => x.id === predioId);
   const verbo = acao === "fechar_registro" ? "FECHAR" : "REABRIR";
-  if (!p || !confirm(`${verbo} o registro de ${p.nome}?`)) return;
+  if (!p || !confirm(`${verbo} o registro de água de ${p.nome}?`)) return;
   try {
     await buscar(`/api/predios/${p.id}/comando`, {
       method: "POST",
@@ -255,32 +296,40 @@ async function ciclo() {
       buscar("/api/resumo"), buscar("/api/predios"), buscar("/api/alertas?limite=20"),
     ]);
     ultimosPredios = dados.predios;
-    atualizarAlertas(alertas.alertas);
-    document.getElementById("telegram").textContent =
-      resumo.telegram_ativo ? "📱 Telegram ligado" : "📱 Telegram desligado (alertas só no painel e no terminal)";
+    const registros = Object.fromEntries(ultimosPredios.map(p => [p.id, p.registro]));
 
+    // cabeçalho
     document.getElementById("relogio").textContent = resumo.relogio_simulado
-      ? "🕒 " + resumo.relogio_simulado.slice(8, 10) + "/" + resumo.relogio_simulado.slice(5, 7) +
-        " " + resumo.relogio_simulado.slice(11, 16) + " (simulado)"
-      : "🕒 aguardando leituras";
-    document.getElementById("conexao").textContent = resumo.mqtt_conectado ? "🟢 MQTT conectado" : "🔴 MQTT desconectado";
-    document.getElementById("c-online").textContent = `${resumo.predios_online} / ${resumo.predios_ativos}`;
-    document.getElementById("c-vazao").textContent = `${fmt(resumo.vazao_total_lpm)} L/min`;
-    const cAlertas = document.getElementById("c-alertas");
-    cAlertas.textContent = resumo.alertas_ativos;
-    cAlertas.className = "text-2xl font-bold " + (resumo.alertas_ativos ? "text-red-600" : "");
+      ? `🕒 ${hora(resumo.relogio_simulado)} (simulado)` : "🕒 aguardando leituras";
+    const con = document.getElementById("conexao");
+    con.textContent = resumo.mqtt_conectado ? "🟢 recebendo dados" : "🔴 sem conexão";
+    const tg = document.getElementById("telegram");
+    tg.textContent = resumo.telegram_ativo ? "📱 Telegram ligado" : "📱 Telegram desligado";
+    tg.className = "ml-auto text-xs px-2 py-1 rounded-full " +
+      (resumo.telegram_ativo ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500");
+
+    // números
+    document.getElementById("c-online").textContent = `${resumo.predios_online} de ${resumo.predios_ativos}`;
+    document.getElementById("c-vazao").textContent = `${fmt(resumo.vazao_total_lpm, 0)} L/min`;
     document.getElementById("c-fechados").textContent = resumo.registros_fechados;
+    const n = resumo.alertas_ativos;
+    document.getElementById("c-alertas").textContent = n;
+    document.getElementById("c-alertas").className = "text-2xl font-bold " + (n ? "text-red-600" : "text-slate-900");
+    document.getElementById("c-alertas-dica").textContent = n ? "precisam de atenção" : "tudo certo";
+    document.getElementById("cartao-alertas").classList.toggle("ring-2", n > 0);
+    document.getElementById("cartao-alertas").classList.toggle("ring-red-300", n > 0);
 
     if (!selecionado) {
       const primeiro = ultimosPredios.find(p => p.ativo);
       if (primeiro) selecionado = primeiro.id;
     }
+    atualizarAlertas(alertas.alertas, registros);
     atualizarMapa(ultimosPredios);
     atualizarLista(ultimosPredios);
-    atualizarCabecalhoPredio();
+    atualizarDetalhe();
     await atualizarGraficos();
   } catch (erro) {
-    document.getElementById("conexao").textContent = "🔴 API fora do ar";
+    document.getElementById("conexao").textContent = "🔴 painel sem resposta do servidor";
     console.error(erro);
   }
 }
