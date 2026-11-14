@@ -68,6 +68,14 @@ Base do consumo normal (decisão do time em 14/11 — "estudos medidos"):
 - `MODO_DEMO=1` no `.env`: limites curtos para a demonstração.
 - Classificação apresentada como "provável causa". Cooldown entre alertas; aviso de "resolvido" quando o fluxo zera.
 - Cada alerta tem o campo de operação (pendente, informado, consertado), preenchido pelo gestor.
+- Quando a operação vira **Consertado**, o alerta sai da lista e vai para a aba escondida **Finalizados**.
+
+## Painel do gestor (decisões do time em 14/11)
+- Abas: **Visão geral**, **Cadastrar unidade** e **Finalizados** (discreta, com o número de ocorrências).
+- Consumo médio só **por unidade** (no detalhe); não há total somado de todas as unidades.
+- **Histórico semanal** guardado (tabela `consumo_diario`, agregada por semana) e **média semanal de acompanhamento** (só semanas completas, anteriores à atual), com gráfico das últimas 8 semanas.
+- **Demonstrativo de economia** na Visão geral: água não desperdiçada e valor poupado na conta. Hipótese: sem o LeakFinder o vazamento duraria **30 dias** (até a próxima conta); tarifa **R$ 7,0032/m³** = tarifa média de água da Sanepar 2026 (IRT 2026 da Agepar, em vigor desde 17/05/2026; sem esgoto, estimativa conservadora). Configurável no `.env` (`DIAS_SEM_SISTEMA`, `TARIFA_RS_M3`). Sempre marcado como simulado.
+- **Cadastrar unidade:** escola ou CMEI pelo painel; grava em `dados/predios.json` com `camera_instalada: false` e aparece como **aguardando câmera** (sem leituras; o simulador a ignora até a câmera ser instalada).
 
 ## Ordem de construção
 1. Estrutura, venv, requirements, `.env.example`, teste MQTT, primeiro commit.

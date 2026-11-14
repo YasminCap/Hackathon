@@ -55,6 +55,16 @@
 | 14/11 | **Consumo normal baseado em estudos medidos:** escolas **10 L/aluno/dia**, CMEIs **25 L/criança/dia**, com número de alunos fictício. | Tabelas de projeto usam 50 L/aluno/dia, mas servem para dimensionar a caixa d'água. Estudos que mediram escolas públicas encontraram cerca de 8 a 11 L/aluno/dia (ex.: Joinville, Brasília). Para creches não há estudo medido: 25 L é estimativa nossa, acima do mínimo de 20 L da UNICEF para período integral. |
 | 14/11 | Na demonstração, o **tipo de vazamento é sorteado**. | Quem descobre a provável causa é o sistema, não quem apresenta. |
 
+### Painel do gestor
+
+| Data | Decisão | Motivo |
+|---|---|---|
+| 14/11 | Alerta marcado como **Consertado** vai para a aba escondida **Finalizados**. Se o vazamento parar mas ninguém marcar, ele continua visível. | A lista principal mostra só o que precisa de atenção, sem perder o registro; e nada some sem alguém confirmar o conserto. |
+| 14/11 | **Consumo médio só por unidade**, sem o total somado de todas. | O total somado não ajuda o gestor a agir; o que importa é cada unidade. |
+| 14/11 | **Histórico semanal** guardado e **média semanal de acompanhamento** por unidade (só semanas completas). | Permite ver tendência e comparar a semana atual com o normal daquela unidade. |
+| 14/11 | **Demonstrativo de economia**: água não desperdiçada e valor poupado. Hipótese de **30 dias** sem o sistema; tarifa **R$ 7,00/m³** (tarifa média de água da Sanepar 2026, sem esgoto). | Mostra o retorno do projeto em litros e em reais. A tarifa sem esgoto deixa a estimativa conservadora. |
+| 14/11 | **Cadastro de unidade** pelo painel; a unidade nova fica **aguardando câmera** até a instalação. | É assim na vida real: primeiro se cadastra, depois se instala o equipamento. |
+
 ### Modelo de negócio
 
 | Data | Decisão | Motivo |
@@ -149,6 +159,16 @@ O sistema não coleta dados pessoais: só o consumo de água de prédios públic
 
 **20. O que acontece com prédios que funcionam 24 horas, como UPAs?**
 Eles não têm "horário fechado", então precisam de outra regra (a vazão mínima da madrugada). Está previsto como evolução futura.
+
+**22. De onde vem o valor da economia? 30 dias não é exagero?**
+É uma hipótese explícita: sem o LeakFinder, um vazamento escondido (descarga, boia, torneira de madrugada) só
+apareceria na conta do mês seguinte. A tarifa usada é a média de água da Sanepar em 2026 (R$ 7,00/m³), **sem
+esgoto** — então o valor real tende a ser maior. *(Atenção: um cano estourado costuma ser percebido antes de 30 dias,
+porque aparece água. Se a banca questionar, admitir que para vazamentos grandes a hipótese é generosa.)*
+
+**23. E quando entra uma escola nova?**
+O gestor cadastra pelo próprio painel (nome, local no mapa, horário, número de alunos). Ela aparece como "aguardando
+câmera" e passa a ser monitorada assim que a ESP32-CAM é instalada.
 
 **21. Existem soluções parecidas no mercado?**
 *(Não pesquisamos concorrentes. Se a banca perguntar, citar o diferencial: sem obra, sem tomada, foco em prédios públicos e remuneração pela economia. Vale pesquisar antes do pitch.)*

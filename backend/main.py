@@ -13,8 +13,11 @@ Rotas:
   GET  /api/predios                        — cadastro + última leitura de cada unidade
   GET  /api/predios/{id}/leituras?limite=  — série recente (gráfico)
   GET  /api/predios/{id}/consumo_horario?horas= — litros por hora (horário de Londrina)
-  GET  /api/alertas                        — alertas de vazamento/consumo excessivo
+  GET  /api/predios/{id}/semanal           — consumo por semana + média semanal de acompanhamento
+  POST /api/predios                        — incluir unidade (fica "aguardando câmera")
+  GET  /api/alertas?finalizados=           — alertas em andamento (padrão) ou finalizados (consertados)
   POST /api/alertas/{id}/operacao          — campo de operação: pendente | informado | consertado
+  GET  /api/economia                       — água não desperdiçada e valor poupado na conta
   Documentação interativa: http://127.0.0.1:8000/docs
 
 Como rodar (na raiz do projeto):
@@ -35,7 +38,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import avisos, db
+from .cadastro import CadastroInvalido, incluir_unidade
 from .config import MODO_DEMO, PASTA_PAINEL, SEGUNDOS_ONLINE, carregar_predios
+from .economia import demonstrativo, economia_do_alerta
 from .deteccao import Detector
 from .mqtt_cliente import ClienteMQTT
 
@@ -125,7 +130,7 @@ def listar_predios():
     resposta = []
     for pid, p in PREDIOS.items():
         u = ultimas.get(pid)
-        online = bool(u) and _segundos_desde(u["recebido_em"]) <= SEGUNDOS_ONLINE
+        online = p.get("camera_instalada", True) and bool(u) and _segundos_desde(u["recebido_em"]) <= SEGUNDOS_ONLINE
         resposta.append({
             **p,
             "online": online,
@@ -147,12 +152,14 @@ def resumo():
         "aviso": "DADOS SIMULADOS",
         "predios_cadastrados": len(predios),
         "predios_ativos": len(IDS_ATIVOS),
+        "predios_com_camera": sum(1 for p in predios if p["ativo"] and p.get("camera_instalada", True)),
         "predios_online": len(online),
         "vazao_total_lpm": round(sum(p["vazao_lpm"] or 0 for p in online), 2),
         "alertas_ativos": sum(1 for p in predios if p["alerta"]),
         # campo de operação: ocorrências que ninguém informou ainda à manutenção
         "aguardando_acao": sum(1 for a in alertas if a["operacao"] == "pendente"),
         "consertados": sum(1 for a in alertas if a["operacao"] == "consertado"),
+        "finalizados": len(db.alertas_por_operacao(finalizados=True, limite=1000)),
         "relogio_simulado": max(horarios) if horarios else None,
         "mqtt_conectado": mqtt_cliente.conectado,
     }
@@ -171,13 +178,64 @@ def consumo_horario(pid: str, horas: int = Query(24, ge=1, le=24 * 31)):
     return {"predio": pid, "horas": db.consumo_por_hora(pid, horas)}
 
 
+@app.get("/api/predios/{pid}/semanal")
+def consumo_semanal(pid: str, semanas: int = Query(8, ge=1, le=52)):
+    """Histórico semanal (segunda a domingo) e a média semanal de acompanhamento.
+    A média usa só semanas COMPLETAS (7 dias com registro) e anteriores à semana atual."""
+    _predio_ou_404(pid)
+    lista = db.consumo_semanal(pid, semanas)
+    for s in lista:
+        s["completa"] = s["dias"] >= 7
+    anteriores = [s for s in lista[:-1] if s["completa"]]
+    media = round(sum(s["litros"] for s in anteriores) / len(anteriores), 1) if anteriores else None
+    atual = lista[-1] if lista else None
+    variacao = None
+    if atual and media and atual["completa"]:
+        variacao = round((atual["litros"] - media) / media * 100, 1)
+    return {"aviso": "DADOS SIMULADOS", "predio": pid, "semanas": lista,
+            "media_semanal": media, "semanas_na_media": len(anteriores),
+            "semana_atual": atual, "variacao_pct": variacao}
+
+
+class NovaUnidade(BaseModel):
+    nome: str
+    tipo: Literal["escola", "cmei"]
+    regiao: str = ""
+    lat: float
+    lon: float
+    horario_uso: str
+    dias_uso: Literal["uteis", "todos"] = "uteis"
+    alunos: int
+
+
+@app.post("/api/predios", status_code=201)
+def cadastrar_unidade(corpo: NovaUnidade):
+    """Inclui uma escola ou CMEI. Fica 'aguardando câmera' até a ESP32-CAM ser instalada."""
+    try:
+        unidade = incluir_unidade(corpo.model_dump(), PREDIOS)
+    except CadastroInvalido as erro:
+        raise HTTPException(400, str(erro)) from erro
+    IDS_ATIVOS.add(unidade["id"])            # leituras dela passam a ser aceitas
+    detector.predios[unidade["id"]] = unidade
+    print(f"[CADASTRO] Nova unidade {unidade['id']}: {unidade['nome']} (aguardando câmera)")
+    return unidade
+
+
 @app.get("/api/alertas")
-def listar_alertas(limite: int = Query(30, ge=1, le=200)):
-    """Alertas ativos primeiro, depois os mais recentes."""
-    alertas = db.alertas_recentes(limite)
+def listar_alertas(finalizados: bool = False, limite: int = Query(30, ge=1, le=200)):
+    """finalizados=false (padrão): alertas em andamento, ativos primeiro.
+    finalizados=true: aba Finalizados — operação marcada como 'consertado'."""
+    alertas = db.alertas_por_operacao(finalizados, limite)
     for a in alertas:
         a["nome"] = PREDIOS.get(a["dispositivo"], {}).get("nome", a["dispositivo"])
+        a["economia"] = economia_do_alerta(a)
     return {"aviso": "DADOS SIMULADOS", "alertas": alertas}
+
+
+@app.get("/api/economia")
+def economia():
+    """Demonstrativo da água que não foi desperdiçada e do valor poupado na conta (simulado)."""
+    return demonstrativo(db.todos_alertas())
 
 
 class Operacao(BaseModel):

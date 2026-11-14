@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LeakFinder Londrina — Painel</title>
 <!--
-  Painel da prefeitura: resumo, mapa, alertas e detalhe de cada unidade.
+  Painel do gestor, em abas:
+    • Visão geral       — números, demonstrativo de economia, mapa, alertas em andamento, unidades e detalhe
+    • Cadastrar unidade — inclusão de escola ou CMEI (fica "aguardando câmera")
+    • Finalizados       — aba escondida com os alertas marcados como "Consertado"
   HTML + JS puro, Tailwind via CDN, Chart.js e Leaflet. Atualiza a cada 2 s (app.js).
   Todos os dados exibidos são SIMULADOS.
 -->
@@ -21,6 +24,10 @@
   /* mapa mais suave, para os pontos coloridos se destacarem */
   .leaflet-tile-pane { filter: saturate(.35) brightness(1.06) contrast(.92); }
   .cartao { background: #fff; border-radius: 1rem; box-shadow: 0 1px 2px rgb(15 23 42 / .06); border: 1px solid #e2e8f0; }
+  .aba { padding: .5rem .9rem; border-radius: .6rem; font-size: .875rem; font-weight: 500; color: #475569; }
+  .aba:hover { background: #f1f5f9; }
+  .aba.ativa { background: #0284c7; color: #fff; }
+  .campo { width: 100%; border: 1px solid #cbd5e1; border-radius: .5rem; padding: .5rem .75rem; background: #fff; }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -39,100 +46,226 @@
         <span class="bg-amber-100 text-amber-800 font-semibold px-3 py-1.5 rounded-full">dados simulados</span>
       </div>
     </div>
+    <!-- Abas -->
+    <nav class="max-w-7xl mx-auto px-4 pb-2 flex flex-wrap gap-1">
+      <button class="aba ativa" data-aba="geral">Visão geral</button>
+      <button class="aba" data-aba="cadastro">➕ Cadastrar unidade</button>
+      <button class="aba ml-auto text-slate-500" data-aba="finalizados">🗂️ Finalizados (<span id="n-finalizados">0</span>)</button>
+    </nav>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 py-5 space-y-5">
+  <main class="max-w-7xl mx-auto px-4 py-5">
 
-    <!-- Números principais -->
-    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="cartao p-4 flex gap-3 items-start">
-        <div class="w-10 h-10 rounded-lg bg-sky-50 grid place-items-center text-lg shrink-0">🏫</div>
-        <div><div class="text-xs text-slate-500">Unidades online</div>
-          <div id="c-online" class="text-2xl font-bold text-slate-900">--</div>
-          <div class="text-xs text-slate-400">enviando leituras</div></div>
-      </div>
-      <div class="cartao p-4 flex gap-3 items-start">
-        <div class="w-10 h-10 rounded-lg bg-sky-50 grid place-items-center text-lg shrink-0">💧</div>
-        <div><div class="text-xs text-slate-500">Consumo médio (última foto)</div>
-          <div id="c-vazao" class="text-2xl font-bold text-slate-900">--</div>
-          <div class="text-xs text-slate-400">soma de todas as unidades</div></div>
-      </div>
-      <div id="cartao-alertas" class="cartao p-4 flex gap-3 items-start">
-        <div class="w-10 h-10 rounded-lg bg-red-50 grid place-items-center text-lg shrink-0">🚨</div>
-        <div><div class="text-xs text-slate-500">Alertas ativos</div>
-          <div id="c-alertas" class="text-2xl font-bold text-slate-900">--</div>
-          <div id="c-alertas-dica" class="text-xs text-slate-400">&nbsp;</div></div>
-      </div>
-      <div class="cartao p-4 flex gap-3 items-start">
-        <div class="w-10 h-10 rounded-lg bg-amber-50 grid place-items-center text-lg shrink-0">🛠️</div>
-        <div><div class="text-xs text-slate-500">Aguardando ação</div>
-          <div id="c-aguardando" class="text-2xl font-bold text-slate-900">--</div>
-          <div id="c-consertados" class="text-xs text-slate-400">ocorrências com operação pendente</div></div>
-      </div>
-    </section>
+    <!-- ===================================================== VISÃO GERAL -->
+    <div id="aba-geral" class="space-y-5">
 
-    <!-- Mapa + alertas -->
-    <section class="grid lg:grid-cols-3 gap-5">
-      <div class="cartao lg:col-span-2 overflow-hidden">
-        <div class="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-100">
-          <h2 class="font-semibold text-slate-900">Mapa das unidades</h2>
-          <div id="legenda" class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500"></div>
+      <!-- Números principais -->
+      <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="cartao p-4 flex gap-3 items-start">
+          <div class="w-10 h-10 rounded-lg bg-sky-50 grid place-items-center text-lg shrink-0">🏫</div>
+          <div><div class="text-xs text-slate-500">Unidades online</div>
+            <div id="c-online" class="text-2xl font-bold text-slate-900">--</div>
+            <div id="c-online-dica" class="text-xs text-slate-400">enviando leituras</div></div>
         </div>
-        <div id="mapa" class="h-[420px]"></div>
-      </div>
-
-      <div class="cartao flex flex-col">
-        <div class="px-4 py-3 flex items-center gap-2 border-b border-slate-100">
-          <h2 class="font-semibold text-slate-900">Alertas</h2>
+        <div id="cartao-alertas" class="cartao p-4 flex gap-3 items-start">
+          <div class="w-10 h-10 rounded-lg bg-red-50 grid place-items-center text-lg shrink-0">🚨</div>
+          <div><div class="text-xs text-slate-500">Alertas ativos</div>
+            <div id="c-alertas" class="text-2xl font-bold text-slate-900">--</div>
+            <div id="c-alertas-dica" class="text-xs text-slate-400">&nbsp;</div></div>
         </div>
-        <ul id="alertas" class="flex-1 overflow-y-auto max-h-[420px] p-3 space-y-2"></ul>
-      </div>
-    </section>
+        <div class="cartao p-4 flex gap-3 items-start">
+          <div class="w-10 h-10 rounded-lg bg-amber-50 grid place-items-center text-lg shrink-0">🛠️</div>
+          <div><div class="text-xs text-slate-500">Aguardando ação</div>
+            <div id="c-aguardando" class="text-2xl font-bold text-slate-900">--</div>
+            <div id="c-consertados" class="text-xs text-slate-400">&nbsp;</div></div>
+        </div>
+      </section>
 
-    <!-- Unidades + detalhe -->
-    <section class="grid lg:grid-cols-3 gap-5">
-      <div class="cartao overflow-hidden">
+      <!-- Demonstrativo de economia -->
+      <section class="cartao p-4">
+        <div class="flex flex-wrap items-baseline gap-2 mb-3">
+          <h2 class="font-semibold text-slate-900">Demonstrativo de economia</h2>
+          <span class="text-xs text-slate-500">vazamentos encontrados cedo pelo LeakFinder</span>
+        </div>
+        <div class="grid md:grid-cols-3 gap-4 items-stretch">
+          <div class="rounded-xl bg-sky-50 p-4">
+            <div class="text-xs text-sky-800">💧 Água que não foi desperdiçada</div>
+            <div id="e-litros" class="text-3xl font-bold text-sky-900 mt-1">--</div>
+            <div id="e-ocorrencias" class="text-xs text-sky-800 mt-1">&nbsp;</div>
+          </div>
+          <div class="rounded-xl bg-emerald-50 p-4">
+            <div class="text-xs text-emerald-800">💰 Economia na conta de água</div>
+            <div id="e-valor" class="text-3xl font-bold text-emerald-900 mt-1">--</div>
+            <div class="text-xs text-emerald-800 mt-1">valor simulado</div>
+          </div>
+          <div>
+            <div class="text-xs text-slate-500 mb-1">Economia por mês (R$)</div>
+            <div class="h-28"><canvas id="grafico-economia"></canvas></div>
+          </div>
+        </div>
+        <p id="e-hipotese" class="text-xs text-slate-400 mt-3"></p>
+      </section>
+
+      <!-- Mapa + alertas em andamento -->
+      <section class="grid lg:grid-cols-3 gap-5">
+        <div class="cartao lg:col-span-2 overflow-hidden">
+          <div class="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-slate-100">
+            <h2 class="font-semibold text-slate-900">Mapa das unidades</h2>
+            <div id="legenda" class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500"></div>
+          </div>
+          <div id="mapa" class="h-[420px]"></div>
+        </div>
+
+        <div class="cartao flex flex-col">
+          <div class="px-4 py-3 border-b border-slate-100">
+            <h2 class="font-semibold text-slate-900">Alertas em andamento</h2>
+            <p class="text-xs text-slate-500">Ao marcar “Consertado”, o alerta vai para a aba Finalizados</p>
+          </div>
+          <ul id="alertas" class="flex-1 overflow-y-auto max-h-[420px] p-3 space-y-2"></ul>
+        </div>
+      </section>
+
+      <!-- Unidades + detalhe -->
+      <section class="grid lg:grid-cols-3 gap-5">
+        <div class="cartao overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100">
+            <h2 class="font-semibold text-slate-900">Unidades</h2>
+            <p class="text-xs text-slate-500">Clique para ver os detalhes</p>
+          </div>
+          <ul id="lista" class="divide-y divide-slate-100 max-h-[640px] overflow-y-auto"></ul>
+        </div>
+
+        <div class="cartao lg:col-span-2 p-4 space-y-4">
+          <div class="flex flex-wrap items-start gap-3">
+            <div>
+              <h2 id="titulo-predio" class="text-lg font-semibold text-slate-900">Selecione uma unidade</h2>
+              <p id="sub-predio" class="text-xs text-slate-500"></p>
+            </div>
+            <span id="status-predio"></span>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Consumo médio (última foto)</div><div id="info-vazao" class="font-semibold">--</div></div>
+            <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Horário de uso</div><div id="info-horario" class="font-semibold">--</div></div>
+            <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Média por dia</div><div id="info-media" class="font-semibold">--</div></div>
+            <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Média semanal</div><div id="info-semanal" class="font-semibold">--</div></div>
+          </div>
+
+          <!-- Histórico semanal -->
+          <div>
+            <div class="flex flex-wrap items-baseline gap-2">
+              <div class="text-sm font-medium text-slate-700">Consumo por semana (litros)</div>
+              <div id="semanal-variacao" class="text-xs"></div>
+            </div>
+            <div class="text-xs text-slate-400 mb-2">últimas 8 semanas · linha tracejada = média semanal de acompanhamento (semanas completas)</div>
+            <div class="h-52"><canvas id="grafico-semanal"></canvas></div>
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-5">
+            <div>
+              <div class="text-sm font-medium text-slate-700">Consumo médio por foto (litros por minuto)</div>
+              <div class="text-xs text-slate-400 mb-2">últimas 24 horas · uma foto do hidrômetro a cada 30 min</div>
+              <div class="h-48"><canvas id="grafico-vazao"></canvas></div>
+            </div>
+            <div>
+              <div class="text-sm font-medium text-slate-700">Consumo por hora (litros)</div>
+              <div class="text-xs text-slate-400 mb-2">últimas 24 horas</div>
+              <div class="h-48"><canvas id="grafico-horas"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================================================= CADASTRAR UNIDADE -->
+    <div id="aba-cadastro" class="hidden">
+      <section class="cartao p-5 max-w-5xl mx-auto">
+        <h2 class="text-lg font-semibold text-slate-900">Cadastrar unidade</h2>
+        <p class="text-sm text-slate-500 mb-4">
+          A unidade entra no mapa como <b>aguardando câmera</b> e passa a ser monitorada quando a ESP32-CAM for instalada.
+          A média diária é calculada pelo número de alunos (escola: 10 L por aluno; CMEI: 25 L por criança).
+        </p>
+        <form id="form-cadastro" class="grid md:grid-cols-2 gap-5" novalidate>
+          <div class="space-y-3">
+            <label class="block text-sm">Nome da unidade
+              <input name="nome" class="campo mt-1" placeholder="Ex.: Escola Municipal Exemplo 7" required>
+            </label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="block text-sm">Tipo
+                <select name="tipo" class="campo mt-1">
+                  <option value="escola">🏫 Escola</option>
+                  <option value="cmei">🧸 CMEI</option>
+                </select>
+              </label>
+              <label class="block text-sm">Região
+                <select name="regiao" class="campo mt-1">
+                  <option>Centro</option><option>Norte</option><option>Sul</option><option>Leste</option><option>Oeste</option>
+                </select>
+              </label>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="block text-sm">Abre às
+                <input name="abre" type="time" value="07:00" class="campo mt-1">
+              </label>
+              <label class="block text-sm">Fecha às
+                <input name="fecha" type="time" value="17:30" class="campo mt-1">
+              </label>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="block text-sm">Dias de funcionamento
+                <select name="dias_uso" class="campo mt-1">
+                  <option value="uteis">Segunda a sexta</option>
+                  <option value="todos">Todos os dias</option>
+                </select>
+              </label>
+              <label class="block text-sm">Número de alunos
+                <input name="alunos" type="number" min="1" max="3000" value="300" class="campo mt-1">
+              </label>
+            </div>
+            <p id="cad-media" class="text-sm text-slate-600"></p>
+            <p id="cad-erro" class="text-sm text-red-600 min-h-[1.25rem]"></p>
+            <button type="submit" class="bg-sky-600 hover:bg-sky-700 text-white font-medium px-5 py-2 rounded-lg">Salvar unidade</button>
+          </div>
+          <div>
+            <div class="text-sm mb-1">Local da unidade <span class="text-slate-500">(clique no mapa)</span></div>
+            <div id="mapa-cadastro" class="h-80 rounded-lg overflow-hidden border border-slate-200"></div>
+            <p id="cad-local" class="text-xs text-slate-500 mt-1">Nenhum local marcado.</p>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <!-- ======================================================= FINALIZADOS -->
+    <div id="aba-finalizados" class="hidden">
+      <section class="cartao overflow-hidden">
         <div class="px-4 py-3 border-b border-slate-100">
-          <h2 class="font-semibold text-slate-900">Unidades</h2>
-          <p class="text-xs text-slate-500">Clique para ver os detalhes</p>
+          <h2 class="font-semibold text-slate-900">Finalizados</h2>
+          <p class="text-xs text-slate-500">Vazamentos com a operação marcada como “Consertado”. Para reabrir um, mude a operação.</p>
         </div>
-        <ul id="lista" class="divide-y divide-slate-100 max-h-[520px] overflow-y-auto"></ul>
-      </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-xs text-slate-500 text-left">
+              <tr>
+                <th class="px-4 py-2">Unidade</th><th class="px-4 py-2">Ocorrência</th>
+                <th class="px-4 py-2">Início → fim</th><th class="px-4 py-2 text-right">Vazou</th>
+                <th class="px-4 py-2 text-right">Não desperdiçado</th><th class="px-4 py-2 text-right">Economia</th>
+                <th class="px-4 py-2">Operação</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-finalizados" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
 
-      <div class="cartao lg:col-span-2 p-4 space-y-4">
-        <div class="flex flex-wrap items-start gap-3">
-          <div>
-            <h2 id="titulo-predio" class="text-lg font-semibold text-slate-900">Selecione uma unidade</h2>
-            <p id="sub-predio" class="text-xs text-slate-500"></p>
-          </div>
-          <span id="status-predio"></span>
-        </div>
-        <div class="grid grid-cols-3 gap-3 text-sm">
-          <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Média da última foto</div><div id="info-vazao" class="font-semibold">--</div></div>
-          <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Horário de uso</div><div id="info-horario" class="font-semibold">--</div></div>
-          <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Média por dia</div><div id="info-media" class="font-semibold">--</div></div>
-        </div>
-        <div class="grid md:grid-cols-2 gap-5">
-          <div>
-            <div class="text-sm font-medium text-slate-700">Consumo médio por foto (litros por minuto)</div>
-            <div class="text-xs text-slate-400 mb-2">últimas 24 horas da simulação · uma foto do hidrômetro a cada 30 min</div>
-            <div class="h-56"><canvas id="grafico-vazao"></canvas></div>
-          </div>
-          <div>
-            <div class="text-sm font-medium text-slate-700">Consumo por hora (litros)</div>
-            <div class="text-xs text-slate-400 mb-2">últimas 24 horas da simulação</div>
-            <div class="h-56"><canvas id="grafico-horas"></canvas></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <footer class="text-xs text-slate-400 text-center pb-4">
-      Protótipo do SmartCities Hackathon Londrina 2026 · hidrômetros, nomes e consumos são simulados.
+    <footer class="text-xs text-slate-400 text-center py-4">
+      Protótipo do SmartCities Hackathon Londrina 2026 · unidades, alunos, consumos e valores são simulados.
     </footer>
   </main>
 
+  <!-- aviso rápido -->
+  <div id="aviso" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-[1000]"></div>
+
 <!-- ?v=: mude o número quando alterar o app.js, para o navegador não usar a versão antiga -->
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

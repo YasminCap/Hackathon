@@ -95,9 +95,21 @@ Com simulador e backend rodando, abra **http://127.0.0.1:8000**:
 mapa das unidades (cor = situação, tamanho = consumo), alertas, lista de unidades, gráfico do
 consumo médio de cada foto (últimas 24 h) e consumo por hora. Atualiza sozinho a cada 2 s.
 
-**Campo de operação:** cada alerta tem a caixa *Operação* para o gestor registrar o andamento —
-**Pendente** → **Informado à manutenção** → **Consertado**. O cartão *Aguardando ação* mostra
-quantas ocorrências ainda não foram informadas.
+O painel tem três abas:
+
+- **Visão geral** — unidades online, alertas, *Aguardando ação*, **demonstrativo de economia**
+  (água que não foi desperdiçada e valor poupado na conta — simulado), mapa, alertas em andamento e o
+  detalhe de cada unidade com o **histórico semanal** e a **média semanal** de acompanhamento.
+- **Cadastrar unidade** — inclui uma escola ou CMEI (nome, tipo, região, local no mapa, horário, alunos);
+  ela aparece como **aguardando câmera** até a ESP32-CAM ser instalada.
+- **Finalizados** — alertas cuja operação foi marcada como **Consertado**, com a economia de cada um.
+
+**Campo de operação:** cada alerta tem a caixa *Operação* — **Pendente** → **Informado à manutenção**
+→ **Consertado**. Ao marcar *Consertado*, o alerta vai para a aba Finalizados.
+
+**Como a economia é calculada:** sem o LeakFinder, o vazamento duraria 30 dias (até a próxima conta);
+água não desperdiçada = vazão × 30 dias − o que vazou até o conserto; valor = m³ × R$ 7,00
+(tarifa média de água da Sanepar 2026, sem esgoto). Ajustável no `.env` (`DIAS_SEM_SISTEMA`, `TARIFA_RS_M3`).
 
 ## Estrutura
 

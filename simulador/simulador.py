@@ -260,8 +260,8 @@ class Simulador:
             totais_salvos = {}
         predios = {}
         for p in cadastro:
-            if not p["ativo"]:
-                continue  # prédio desativado não tem hidrômetro publicando
+            if not p["ativo"] or not p.get("camera_instalada", True):
+                continue  # desativado ou ainda sem câmera: não há leituras
             rng = random.Random(p["id"])  # leitura inicial estável por prédio
             total = totais_salvos.get(p["id"], round(rng.uniform(100_000, 900_000), 1))
             predio = predio_do_cadastro(p, total)

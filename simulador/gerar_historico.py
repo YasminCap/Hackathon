@@ -28,7 +28,7 @@ DIAS = 28
 
 def main() -> None:
     with open(RAIZ / "dados" / "predios.json", encoding="utf-8") as f:
-        cadastro = [p for p in json.load(f)["predios"] if p["ativo"]]
+        cadastro = [p for p in json.load(f)["predios"] if p["ativo"] and p.get("camera_instalada", True)]
 
     rng = random.Random(2026)  # reprodutível: mesmo histórico a cada execução
     hoje = date.today()

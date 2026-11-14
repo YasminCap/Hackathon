@@ -5,6 +5,7 @@ Tabelas:
   leituras           — cada leitura (foto do hidrômetro) recebida em hidrometro/<id>/leitura
   consumo_historico  — histórico SIMULADO por faixa de 15 min (a "média normal" de cada unidade)
   alertas            — vazamentos detectados + campo de operação (pendente/informado/consertado)
+  consumo_diario     — litros por unidade e por dia (histórico guardado; a visão semanal sai daqui)
 
 Cada operação abre sua própria conexão: o cliente MQTT grava numa thread e a API lê
 em outras, e o SQLite em modo WAL lida bem com isso no volume do protótipo
@@ -65,6 +66,15 @@ CREATE TABLE IF NOT EXISTS alertas (
     operacao_em        TEXT             -- quando a operação mudou pela última vez (UTC real)
 );
 CREATE INDEX IF NOT EXISTS ix_alertas_disp ON alertas (dispositivo, id);
+
+-- Consumo de cada unidade por dia (horário de Londrina). Alimentado pelo histórico simulado e
+-- por cada foto recebida; é a base do histórico semanal e da média semanal de acompanhamento.
+CREATE TABLE IF NOT EXISTS consumo_diario (
+    dispositivo  TEXT NOT NULL,
+    data         TEXT NOT NULL,   -- AAAA-MM-DD
+    litros       REAL NOT NULL,
+    PRIMARY KEY (dispositivo, data)
+);
 """
 
 
@@ -110,6 +120,13 @@ def inserir_leitura(leitura: dict) -> None:
                 leitura["litros"], leitura["vazao_lpm"], leitura["total_litros"],
                 1 if leitura.get("simulado", True) else 0, agora_utc(),
             ),
+        )
+        # soma no dia: a foto das 00:00 mostra o que passou até meia-noite (dia anterior)
+        con.execute(
+            """INSERT INTO consumo_diario (dispositivo, data, litros)
+               VALUES (?, date(datetime(?, '-1 minute')), ?)
+               ON CONFLICT(dispositivo, data) DO UPDATE SET litros = litros + excluded.litros""",
+            (leitura["dispositivo"], leitura["ts_local"], leitura["litros"]),
         )
 
 
@@ -187,6 +204,11 @@ def substituir_historico(linhas: list[tuple]) -> None:
         con.executemany(
             "INSERT INTO consumo_historico (dispositivo, data, minuto, dia_util, litros) VALUES (?, ?, ?, ?, ?)",
             linhas,
+        )
+        # o histórico também vira consumo por dia (base do histórico semanal)
+        con.execute(
+            """INSERT OR REPLACE INTO consumo_diario (dispositivo, data, litros)
+               SELECT dispositivo, data, SUM(litros) FROM consumo_historico GROUP BY dispositivo, data"""
         )
 
 
@@ -271,6 +293,37 @@ def obter_alerta(alerta_id: int) -> dict | None:
     with conexao() as con:
         r = con.execute("SELECT * FROM alertas WHERE id = ?", (alerta_id,)).fetchone()
     return dict(r) if r else None
+
+
+def consumo_semanal(dispositivo: str, semanas: int = 8) -> list[dict]:
+    """Litros por semana (segunda a domingo) das últimas `semanas` semanas com dados,
+    com quantos dias da semana têm registro (7 = semana completa)."""
+    with conexao() as con:
+        linhas = con.execute(
+            """SELECT date(data, '-6 days', 'weekday 1') AS inicio,
+                      ROUND(SUM(litros), 1)                AS litros,
+                      COUNT(*)                             AS dias
+               FROM consumo_diario WHERE dispositivo = ?
+               GROUP BY inicio ORDER BY inicio DESC LIMIT ?""",
+            (dispositivo, semanas),
+        ).fetchall()
+    return [dict(r) for r in reversed(linhas)]
+
+
+def alertas_por_operacao(finalizados: bool, limite: int = 50) -> list[dict]:
+    """finalizados=True → operação 'consertado' (aba Finalizados); False → os demais."""
+    condicao = "operacao = 'consertado'" if finalizados else "operacao != 'consertado'"
+    with conexao() as con:
+        linhas = con.execute(
+            f"SELECT * FROM alertas WHERE {condicao} "
+            "ORDER BY (status = 'ativo') DESC, id DESC LIMIT ?", (limite,)
+        ).fetchall()
+    return [dict(r) for r in linhas]
+
+
+def todos_alertas() -> list[dict]:
+    with conexao() as con:
+        return [dict(r) for r in con.execute("SELECT * FROM alertas ORDER BY id").fetchall()]
 
 
 def alertas_recentes(limite: int = 30) -> list[dict]:

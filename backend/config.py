@@ -59,7 +59,25 @@ LACUNA_MAX_MIN = 15
 SALTO_MAXIMO_LPM = 300
 
 
+# --- Demonstrativo de economia ---
+# Tarifa média de ÁGUA da Sanepar em 2026: R$ 7,0032/m³ (reajuste IRT 2026 da Agepar, em vigor
+# desde 17/05/2026). Não inclui esgoto e a categoria poder público pode ter outro valor:
+# é uma estimativa conservadora. Pode ser trocada no .env (TARIFA_RS_M3).
+TARIFA_RS_M3 = float(os.getenv("TARIFA_RS_M3") or 7.0032)
+# Hipótese: sem o LeakFinder, o vazamento só seria percebido na próxima conta (30 dias)
+DIAS_SEM_SISTEMA = float(os.getenv("DIAS_SEM_SISTEMA") or 30)
+
+# Litros por aluno por dia usados no cadastro (base: estudos medidos; ver CLAUDE.md)
+LITROS_POR_ALUNO = {"escola": 10, "cmei": 25}
+
+ARQUIVO_PREDIOS = RAIZ / "dados" / "predios.json"
+
+
 def carregar_predios() -> dict[str, dict]:
-    """Cadastro de prédios (dados/predios.json — SIMULADO), indexado por id."""
-    with open(RAIZ / "dados" / "predios.json", encoding="utf-8") as f:
-        return {p["id"]: p for p in json.load(f)["predios"]}
+    """Cadastro de prédios (dados/predios.json — SIMULADO), indexado por id.
+    Unidades sem o campo camera_instalada são tratadas como já tendo câmera."""
+    with open(ARQUIVO_PREDIOS, encoding="utf-8") as f:
+        predios = {p["id"]: p for p in json.load(f)["predios"]}
+    for p in predios.values():
+        p.setdefault("camera_instalada", True)
+    return predios
