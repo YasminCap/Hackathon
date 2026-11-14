@@ -28,7 +28,7 @@ Com o simulador e o backend rodando (ver [Como rodar](#como-rodar-windows)), abr
 - Código no GitHub: <https://github.com/YasminCap/Hackathon>
 - Apresentação técnica (slides): <https://claude.ai/artifact/TjFKiYPJRyHW2vbP9EgxL6>
   — privada; só abre para quem a dona compartilhar pelo menu *Share* da apresentação.
-- Material de apoio ao pitch: [materiais-pitch/BENEFICIOS_SOCIAIS.md](materiais-pitch/BENEFICIOS_SOCIAIS.md)
+- Material de apoio ao pitch: [benefícios sociais](materiais-pitch/BENEFICIOS_SOCIAIS.md) e [decisões do projeto + perguntas da banca](materiais-pitch/DECISOES_E_PERGUNTAS.md)
 
 ## Como rodar (Windows)
 
