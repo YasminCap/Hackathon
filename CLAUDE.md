@@ -8,7 +8,8 @@ Plataforma para a Prefeitura de Londrina monitorar em tempo real a água dos pr�
 Detecta vazamentos, avisa a manutenção pelo Telegram, gera ordem de serviço e mostra a economia em R$.
 
 ## Decisões fixas (não mudar sem o time pedir)
-- Protótipo **só de software**. O hidrômetro é simulado, no mesmo contrato MQTT que um ESP32 real usaria. Não sugerir hardware.
+- Protótipo **só de software**. A leitura é simulada, no mesmo contrato MQTT que o dispositivo real usaria. Não sugerir outro hardware.
+- **Hardware da versão real (decisão do time em 14/11): ESP32-CAM fotografando o mostrador do hidrômetro que já existe no prédio, a cada 30 min.** A foto vira número (reconhecimento dos dígitos); não mexe no encanamento. Fechar a água a distância exigiria também uma válvula elétrica.
 - Cliente é a prefeitura. Nada de venda B2C ou kit residencial.
 - Todo dado, tarifa ou fatura de exemplo deve ser marcado como **simulado**.
 - Credenciais só no `.env` (lido com python-dotenv). O `.env` nunca vai para o Git; o `.env.example` vai, sem valores.
@@ -34,7 +35,7 @@ Leitura — tópico `hidrometro/<id>/leitura`:
 ```json
 {"dispositivo": "escola1", "litros": 12.5, "vazao_lpm": 3.2, "total_litros": 1534.7, "timestamp": "2026-11-14T03:12:00Z"}
 ```
-`litros` = volume desde a última mensagem; `vazao_lpm` = vazão atual; `total_litros` = acumulado.
+Uma leitura a cada 30 min (uma foto). `total_litros` = número lido no mostrador; `litros` = diferença para a leitura anterior; `vazao_lpm` = média da meia hora (`litros / 30`).
 
 Comando — tópico `hidrometro/<id>/comando`:
 ```json
@@ -46,13 +47,15 @@ Cadastro de prédios (`dados/predios.json`): `id`, `nome`, `tipo` (escola|cmei|a
 
 ## Simulador
 - 9 a 15 prédios, quantidades parecidas entre os tipos, nomes fictícios ("Escola Municipal Exemplo 1", "UBS Exemplo 1"), consumo realista com perfil por tipo (entrada, merenda, almoço, banhos, limpeza); zero fora do horário e nos dias sem funcionamento.
-- Tempo acelerado configurável (padrão: 1 min real = 1 h simulada) e "modo madrugada".
+- Publica uma leitura a cada 30 min simulados, como a ESP32-CAM (internamente o consumo é calculado minuto a minuto).
+- Tempo acelerado configurável (padrão: 1 min real = 1 h simulada → uma leitura a cada 30 s reais) e "modo madrugada".
 - Cenários injetáveis por prédio: `descarga` (0,5–3 L/min contínuo), `boia` (vazão média contínua), `cano_rompido` (salto para vazão alta), `torneira` (5–10 L/min contínuo).
 - Escuta o tópico de comando.
 
 ## Detecção
-- Fora do horário de uso: fluxo contínuo > 0 por mais de 30 min simulados → vazamento.
-- No horário de uso: consumo da hora > 2x a média da mesma faixa do próprio prédio → consumo excessivo.
+- Fora do horário de uso: consumo em leituras seguidas fora do horário (3 leituras ≈ 1 h; 2 leituras com `MODO_DEMO=1`) → vazamento.
+- No horário de uso: consumo da última hora (2 leituras) > 2x a média da mesma faixa do próprio prédio → consumo excessivo.
+- Leitura suspeita (total diminui ou salto impossível) é descartada: a foto pode ter sido lida errado.
 - `MODO_DEMO=1` no `.env`: limites curtos para a demonstração.
 - Classificação apresentada como "provável causa". Cooldown entre alertas; aviso de "resolvido" quando o fluxo zera.
 - Cada alerta gera ordem de serviço (aberta, em atendimento, resolvida).
@@ -73,7 +76,7 @@ Cadastro de prédios (`dados/predios.json`): `id`, `nome`, `tipo` (escola|cmei|a
   a tarifa real é por faixas). O laudo serviria para contestar a cobrança.
 - **UPA e unidades 24h:** precisam de outra regra de vazamento (vazão mínima da madrugada), pois nunca fecham.
 - **IA com dados reais:** com o histórico real dos hidrômetros, evoluir a detecção para modelos de machine learning.
-- **Hidrômetros reais (ESP32)** nos prédios, no mesmo contrato MQTT do simulador.
+- **ESP32-CAM real nos prédios**, fotografando o hidrômetro, no mesmo contrato MQTT do simulador; válvula elétrica para fechar a água a distância.
 
 Nunca cortar: simulador → detecção → alerta no celular com "Fechar registro" → painel atualizando.
 Commits pequenos e frequentes (provam que o trabalho foi feito durante o evento).
