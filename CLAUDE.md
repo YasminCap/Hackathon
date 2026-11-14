@@ -46,7 +46,12 @@ Campo de operação do alerta (painel → `POST /api/alertas/<id>/operacao`):
 ```
 Valores: `pendente` (padrão), `informado` (manutenção avisada), `consertado`.
 
-Cadastro de prédios (`dados/predios.json`): `id`, `nome`, `tipo` (escola|cmei no protótipo; administrativo|saude|esporte|cultura|assistencia na fase 2), `regiao`, `lat`, `lon` (em Londrina), `ativo`, `horario_uso` (ex.: "07:00-17:30"), `dias_uso` (`uteis` = seg a sex | `todos`), `media_diaria_litros`.
+Cadastro de prédios (`dados/predios.json`): `id`, `nome`, `tipo` (escola|cmei no protótipo; administrativo|saude|esporte|cultura|assistencia na fase 2), `regiao`, `lat`, `lon` (em Londrina), `ativo`, `horario_uso` (ex.: "07:00-17:30"), `dias_uso` (`uteis` = seg a sex | `todos`), `alunos`, `litros_por_aluno`, `media_diaria_litros` (= alunos × litros_por_aluno).
+
+Base do consumo normal (decisão do time em 14/11 — "estudos medidos"):
+- **Escolas: 10 L/aluno/dia**, faixa medida em escolas públicas brasileiras (ex.: Joinville ~8,8 L/aluno/dia; Brasília 7,6–11). Tabelas de projeto usam 50 L/aluno/dia, mas servem para dimensionar a caixa d'água, não para o consumo real.
+- **CMEIs: 25 L/criança/dia**, estimativa para período integral (acima do mínimo de 20 L da UNICEF); não há estudo medido só de creches.
+- Número de alunos é fictício (escolas 250–500, CMEIs 90–150). Fontes: tabela de consumo predial (USP, NBR 7229/Tsutiya); artigos da revista Paranoá (UnB); ABRHidro (São Cristóvão/SE); UTFPR; PURA/Sabesp (Comitê PCJ, 2014).
 
 ## Simulador
 - Só escolas e CMEIs: 6 escolas (1 desativada) e 4 CMEIs, nomes fictícios ("Escola Municipal Exemplo 1", "CMEI Exemplo 1"), consumo realista com perfil por tipo (entrada, intervalo, merenda, banho, limpeza); zero fora do horário e no fim de semana. O simulador também conhece perfis de outros tipos de prédio (para a fase 2), mas o cadastro do protótipo não os usa.

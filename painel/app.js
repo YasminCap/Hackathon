@@ -293,7 +293,10 @@ function atualizarDetalhe() {
   document.getElementById("info-vazao").textContent = p.vazao_lpm != null ? `${fmt(p.vazao_lpm, 1)} L/min` : "—";
   document.getElementById("info-horario").textContent =
     `${p.horario_uso.replace("-", " às ")} · ${p.dias_uso === "todos" ? "todos os dias" : "seg a sex"}`;
-  document.getElementById("info-media").textContent = p.ativo ? `${fmt(p.media_diaria_litros, 0)} L` : "—";
+  // média = alunos × litros por aluno (base: estudos que mediram escolas públicas; ver CLAUDE.md)
+  document.getElementById("info-media").textContent = !p.ativo ? "—"
+    : p.alunos ? `${fmt(p.media_diaria_litros, 0)} L · ${p.alunos} ${p.tipo === "cmei" ? "crianças" : "alunos"} × ${p.litros_por_aluno} L`
+    : `${fmt(p.media_diaria_litros, 0)} L`;
 }
 
 // --------------------------------------------------------------------- ações
