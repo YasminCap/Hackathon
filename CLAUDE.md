@@ -30,6 +30,7 @@ olho-dagua/
 ├── simulador/    simulador.py (+ endpoint ou painel simples para injetar cenários)
 ├── painel/       index.html, app.js
 ├── dados/        predios.json (simulado)
+├── documentos/   decisões e perguntas da banca, benefícios sociais, BMC, guia de dois computadores
 ├── .env / .env.example / .gitignore / requirements.txt / README.md
 ```
 
