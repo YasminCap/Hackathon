@@ -18,6 +18,7 @@ Rotas:
   GET  /api/geocodificar?endereco=         — endereço em Londrina → ponto no mapa (OpenStreetMap)
   GET  /api/alertas?finalizados=           — alertas em andamento (padrão) ou finalizados (consertados)
   POST /api/alertas/{id}/operacao          — campo de operação: pendente | informado | consertado
+  DELETE /api/alertas                      — limpar o histórico de vazamentos (zera a economia)
   GET  /api/economia                       — água não desperdiçada e valor poupado na conta
   Documentação interativa: http://127.0.0.1:8000/docs
 
@@ -243,6 +244,15 @@ def listar_alertas(finalizados: bool = False, limite: int = Query(30, ge=1, le=2
         a["nome"] = PREDIOS.get(a["dispositivo"], {}).get("nome", a["dispositivo"])
         a["economia"] = economia_do_alerta(a)
     return {"aviso": "DADOS SIMULADOS", "alertas": alertas}
+
+
+@app.delete("/api/alertas")
+def limpar_historico():
+    """Botão "Limpar histórico de vazamentos": apaga todos os alertas (em andamento e
+    finalizados) e, com eles, o demonstrativo de economia. Leituras e médias continuam."""
+    apagados = db.limpar_alertas()
+    print(f"[HISTÓRICO] {apagados} alerta(s) apagado(s) pelo painel")
+    return {"ok": True, "apagados": apagados}
 
 
 @app.get("/api/economia")

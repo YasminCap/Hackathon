@@ -64,8 +64,9 @@ SALTO_MAXIMO_LPM = 300
 # desde 17/05/2026). Não inclui esgoto e a categoria poder público pode ter outro valor:
 # é uma estimativa conservadora. Pode ser trocada no .env (TARIFA_RS_M3).
 TARIFA_RS_M3 = float(os.getenv("TARIFA_RS_M3") or 7.0032)
-# Hipótese: sem o LeakFinder, o vazamento só seria percebido na próxima conta (30 dias)
-DIAS_SEM_SISTEMA = float(os.getenv("DIAS_SEM_SISTEMA") or 30)
+# Hipótese (decisão do time em 14/11): sem o LeakFinder, um vazamento escondido duraria em média
+# 15 dias até ser percebido — metade do ciclo da conta mensal, uma estimativa conservadora.
+DIAS_SEM_SISTEMA = float(os.getenv("DIAS_SEM_SISTEMA") or 15)
 
 ARQUIVO_PREDIOS = RAIZ / "dados" / "predios.json"
 

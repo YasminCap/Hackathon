@@ -86,6 +86,8 @@
         <div class="flex flex-wrap items-baseline gap-2 mb-3">
           <h2 class="font-semibold text-slate-900">Demonstrativo de economia</h2>
           <span class="text-xs text-slate-500">vazamentos encontrados cedo pelo LeakFinder</span>
+          <button type="button" data-limpar-historico
+                  class="ml-auto text-xs text-slate-400 hover:text-red-600 underline">🗑️ Limpar histórico de vazamentos</button>
         </div>
         <div class="grid md:grid-cols-3 gap-4 items-stretch">
           <div class="rounded-xl bg-sky-50 p-4">
@@ -237,9 +239,14 @@
     <!-- ======================================================= FINALIZADOS -->
     <div id="aba-finalizados" class="hidden">
       <section class="cartao overflow-hidden">
-        <div class="px-4 py-3 border-b border-slate-100">
-          <h2 class="font-semibold text-slate-900">Finalizados</h2>
-          <p class="text-xs text-slate-500">Vazamentos com a operação marcada como “Consertado”. Para reabrir um, mude a operação.</p>
+        <div class="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3">
+          <div>
+            <h2 class="font-semibold text-slate-900">Finalizados</h2>
+            <p class="text-xs text-slate-500">Vazamentos com a operação marcada como “Consertado”. Para reabrir um, mude a operação.</p>
+          </div>
+          <button type="button" data-limpar-historico
+                  class="ml-auto rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:bg-red-100">
+            🗑️ Limpar histórico de vazamentos</button>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -266,6 +273,6 @@
   <div id="aviso" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-[1000]"></div>
 
 <!-- ?v=: mude o número quando alterar o app.js, para o navegador não usar a versão antiga -->
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

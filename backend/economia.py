@@ -2,7 +2,7 @@
 economia.py — demonstrativo da água que não foi desperdiçada e do valor poupado na conta.
 
 Para cada vazamento já resolvido (o consumo voltou ao normal):
-  • sem o LeakFinder, ele continuaria até aparecer na conta: vazão × DIAS_SEM_SISTEMA;
+  • sem o LeakFinder, ele continuaria até ser percebido: vazão × DIAS_SEM_SISTEMA (15 dias);
   • com o LeakFinder, vazou só até o conserto: litros_perdidos (já calculado na detecção);
   • água não desperdiçada = (sem o sistema) − (o que vazou de fato);
   • economia em R$ = água não desperdiçada (m³) × TARIFA_RS_M3.
@@ -57,7 +57,7 @@ def demonstrativo(alertas: list[dict]) -> dict:
         "valor_rs": round(total_rs, 2),
         "tarifa_rs_m3": TARIFA_RS_M3,
         "dias_sem_sistema": DIAS_SEM_SISTEMA,
-        "hipotese": (f"Sem o LeakFinder, cada vazamento duraria {DIAS_SEM_SISTEMA:g} dias (até a próxima conta). "
+        "hipotese": (f"Sem o LeakFinder, cada vazamento duraria em média {DIAS_SEM_SISTEMA:g} dias até ser percebido. "
                      f"Tarifa média de água da Sanepar 2026: R$ {_virgula(TARIFA_RS_M3)}/m³ (sem esgoto)."),
         "por_mes": [{"mes": m["mes"], "litros": round(m["litros"]), "valor_rs": round(m["valor_rs"], 2)}
                     for m in sorted(por_mes.values(), key=lambda x: x["mes"])],

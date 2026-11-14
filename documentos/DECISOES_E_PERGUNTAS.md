@@ -62,7 +62,7 @@
 | 14/11 | Alerta marcado como **Consertado** vai para a aba escondida **Finalizados**. Se o vazamento parar mas ninguém marcar, ele continua visível. | A lista principal mostra só o que precisa de atenção, sem perder o registro; e nada some sem alguém confirmar o conserto. |
 | 14/11 | **Consumo médio só por unidade**, sem o total somado de todas. | O total somado não ajuda o gestor a agir; o que importa é cada unidade. |
 | 14/11 | **Histórico semanal** guardado e **média semanal de acompanhamento** por unidade (só semanas completas). | Permite ver tendência e comparar a semana atual com o normal daquela unidade. |
-| 14/11 | **Demonstrativo de economia**: água não desperdiçada e valor poupado. Hipótese de **30 dias** sem o sistema; tarifa **R$ 7,00/m³** (tarifa média de água da Sanepar 2026, sem esgoto). | Mostra o retorno do projeto em litros e em reais. A tarifa sem esgoto deixa a estimativa conservadora. |
+| 14/11 | **Demonstrativo de economia**: água não desperdiçada e valor poupado. Hipótese de **15 dias** sem o sistema (começou com 30; o time reduziu por achar exagerado); tarifa **R$ 7,00/m³** (tarifa média de água da Sanepar 2026, sem esgoto). | Mostra o retorno do projeto em litros e em reais. A tarifa sem esgoto deixa a estimativa conservadora. |
 | 14/11 | **Cadastro de unidade** pelo painel; a unidade nova fica **aguardando câmera** até a instalação. | É assim na vida real: primeiro se cadastra, depois se instala o equipamento. |
 | 14/11 | Cadastro **com endereço** (localizado no mapa pelo OpenStreetMap) e **sem número de alunos**. | O gestor sabe o endereço, não o consumo esperado. A média de cada unidade é **medida pelo consumo semanal registrado**; os "alunos" das unidades de exemplo só servem para o simulador gerar consumo realista. |
 
@@ -161,11 +161,11 @@ O sistema não coleta dados pessoais: só o consumo de água de prédios públic
 **20. O que acontece com prédios que funcionam 24 horas, como UPAs?**
 Eles não têm "horário fechado", então precisam de outra regra (a vazão mínima da madrugada). Está previsto como evolução futura.
 
-**22. De onde vem o valor da economia? 30 dias não é exagero?**
-É uma hipótese explícita: sem o LeakFinder, um vazamento escondido (descarga, boia, torneira de madrugada) só
-apareceria na conta do mês seguinte. A tarifa usada é a média de água da Sanepar em 2026 (R$ 7,00/m³), **sem
-esgoto** — então o valor real tende a ser maior. *(Atenção: um cano estourado costuma ser percebido antes de 30 dias,
-porque aparece água. Se a banca questionar, admitir que para vazamentos grandes a hipótese é generosa.)*
+**22. De onde vem o valor da economia? 15 dias não é exagero?**
+É uma hipótese explícita e conservadora: sem o LeakFinder, um vazamento escondido (descarga, boia, torneira de madrugada)
+só apareceria na conta mensal — usamos **metade** desse ciclo, 15 dias. A tarifa é a média de água da Sanepar em 2026
+(R$ 7,00/m³), **sem esgoto** — então o valor real tende a ser maior. *(Atenção: um cano estourado costuma ser percebido
+mais rápido, porque aparece água. Se a banca questionar, admitir que para vazamentos grandes a hipótese é generosa.)*
 
 **23. E quando entra uma escola nova?**
 O gestor cadastra pelo próprio painel (nome, tipo, horário e endereço, que vira um ponto no mapa). Ela aparece como
