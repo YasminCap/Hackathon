@@ -307,6 +307,25 @@ document.getElementById("tabela-finalizados").addEventListener("change", e => {
   if (sel) salvarOperacao(sel);
 });
 
+// Botão "Limpar histórico de vazamentos" (aba Finalizados e card do Demonstrativo):
+// apaga todos os alertas, em andamento e finalizados, e zera a economia. Para recomeçar
+// entre testes; o consumo registrado, as médias e o cadastro continuam.
+async function limparHistorico() {
+  const ok = confirm("Apagar todo o histórico de vazamentos (em andamento e finalizados)?\n\n" +
+    "A economia volta a zero. O consumo registrado e as médias continuam.\nNão dá para desfazer.");
+  if (!ok) return;
+  try {
+    const r = await buscar("/api/alertas", { method: "DELETE" });
+    avisar(`Histórico limpo: ${r.apagados} vazamento(s) apagado(s).`);
+    assinaturaAlertas = null;
+    await ciclo();
+    await atualizarFinalizados();
+  } catch (erro) {
+    avisar(`Não foi possível limpar: ${erro.message}`);
+  }
+}
+document.querySelectorAll("[data-limpar-historico]").forEach(b => b.addEventListener("click", limparHistorico));
+
 // ------------------------------------------------------------------- gráficos
 Chart.defaults.font.family = "Inter, system-ui, sans-serif";
 Chart.defaults.color = "#64748b";

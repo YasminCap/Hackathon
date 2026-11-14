@@ -321,6 +321,13 @@ def alertas_por_operacao(finalizados: bool, limite: int = 50) -> list[dict]:
     return [dict(r) for r in linhas]
 
 
+def limpar_alertas() -> int:
+    """Apaga TODO o histórico de vazamentos (em andamento e finalizados). Usado para
+    recomeçar entre testes/demonstrações; não mexe nas leituras nem no consumo registrado."""
+    with conexao() as con:
+        return con.execute("DELETE FROM alertas").rowcount
+
+
 def todos_alertas() -> list[dict]:
     with conexao() as con:
         return [dict(r) for r in con.execute("SELECT * FROM alertas ORDER BY id").fetchall()]
