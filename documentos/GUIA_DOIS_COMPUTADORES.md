@@ -58,7 +58,7 @@ py -3.12 -m venv .venv
 ### 4. Testar a internet / correio
 
 ```bash
-.venv\Scripts\python.exe teste_mqtt.py
+.venv\Scripts\python.exe testes\teste_mqtt.py
 ```
 
 Tem que terminar com **✅ Teste MQTT OK**. Faça esse teste **nos dois notebooks**.
@@ -138,7 +138,7 @@ Confira: **"Unidades online: 9 de 9"** — isso prova que as leituras do noteboo
 
 | Sintoma | O que fazer |
 |---|---|
-| Simulador mostra **🔴 sem conexão (MQTT)** | Confira a internet e rode `teste_mqtt.py`. Wi-Fi de evento às vezes bloqueia esse tipo de conexão: use o **roteador do celular** de alguém. |
+| Simulador mostra **🔴 sem conexão (MQTT)** | Confira a internet e rode `testes/teste_mqtt.py`. Wi-Fi de evento às vezes bloqueia esse tipo de conexão: use o **roteador do celular** de alguém. |
 | Painel mostra **0 de 12 unidades online** | O simulador está desligado ou sem internet no notebook 1. Se usam `.env`, confira se é **o mesmo** nos dois. |
 | O alerta não aparece | Tem que ser **madrugada na simulação** (o botão "Simular vazamento" já cuida disso) e esperar 1 a 2 minutos. |
 | O painel mostra a tela antiga | Aperte **Ctrl+Shift+R** no navegador. |

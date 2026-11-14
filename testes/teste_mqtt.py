@@ -1,5 +1,5 @@
 """
-teste_mqtt.py — teste de ida e volta no broker MQTT público (broker.hivemq.com:1883).
+testes/teste_mqtt.py — teste de ida e volta no broker MQTT público (broker.hivemq.com:1883).
 
 O que faz:
   1. Conecta no broker público (sem TLS, sem senha — só para teste rápido).

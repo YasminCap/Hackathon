@@ -26,7 +26,7 @@ MQTT_USUARIO = os.getenv("MQTT_USUARIO") or None
 MQTT_SENHA = os.getenv("MQTT_SENHA") or None
 
 # --- Banco ---
-DB_CAMINHO = Path(os.getenv("DB_CAMINHO") or RAIZ / "olhodagua.db")
+DB_CAMINHO = Path(os.getenv("DB_CAMINHO") or RAIZ / "dados" / "olhodagua.db")
 
 # --- Painel ---
 PASTA_PAINEL = RAIZ / "painel"

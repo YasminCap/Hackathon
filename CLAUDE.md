@@ -29,7 +29,8 @@ olho-dagua/
 ├── backend/      main.py (FastAPI), mqtt_cliente.py, db.py, deteccao.py, avisos.py (alerta no terminal)
 ├── simulador/    simulador.py (+ endpoint ou painel simples para injetar cenários)
 ├── painel/       index.html, app.js
-├── dados/        predios.json (simulado)
+├── dados/        predios.json (simulado) + gerados em execução: olhodagua.db, totais_hidrometros.json
+├── testes/       teste_mqtt.py (ida e volta no broker)
 ├── documentos/   decisões e perguntas da banca, benefícios sociais, BMC, guia de dois computadores
 ├── .env / .env.example / .gitignore / requirements.txt / README.md
 ```

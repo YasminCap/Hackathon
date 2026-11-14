@@ -39,7 +39,7 @@ py -3.12 -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env   # e preencha os valores (opcional)
-python teste_mqtt.py     # teste de ida e volta no broker público
+python testes/teste_mqtt.py   # teste de ida e volta no broker público
 ```
 
 > **Simulador num notebook e painel do gestor em outro?** Veja o
@@ -54,7 +54,7 @@ python teste_mqtt.py     # teste de ida e volta no broker público
 
 - Faz o papel da ESP32-CAM: publica `hidrometro/<id>/leitura` **a cada 30 min simulados** (30 s reais)
   para as unidades ativas de `dados/predios.json`, com o total do hidrômetro e o consumo desde a foto anterior.
-- Guarda o total de cada hidrômetro em `simulador/totais_hidrometros.json` (um hidrômetro real não volta a zero).
+- Guarda o total de cada hidrômetro em `dados/totais_hidrometros.json` (um hidrômetro real não volta a zero).
 - Controle da demonstração em http://127.0.0.1:8001: escolher a unidade e **iniciar vazamento**
   (o tipo é sorteado — quem descobre a provável causa é o LeakFinder), consertar, ir para a madrugada.
 - Sem `.env`, usa o broker público `broker.hivemq.com:1883`.
@@ -67,7 +67,7 @@ Em outro terminal, com o simulador rodando:
 .venv\Scripts\python.exe -m backend.main
 ```
 
-- Recebe `hidrometro/+/leitura`, valida (só unidades do cadastro, contrato oficial) e grava em `olhodagua.db`.
+- Recebe `hidrometro/+/leitura`, valida (só unidades do cadastro, contrato oficial) e grava em `dados/olhodagua.db`.
 - API em http://127.0.0.1:8000 — documentação interativa em http://127.0.0.1:8000/docs.
 - `POST /api/alertas/<id>/operacao` com `{"operacao": "informado"}` preenche o campo de operação.
 
@@ -117,6 +117,7 @@ O painel tem três abas:
 backend/         API FastAPI, cliente MQTT, banco, detecção, avisos no terminal
 simulador/       simulador dos hidrômetros + controle da demonstração
 painel/          painel do gestor (HTML + JS)
-dados/           predios.json (simulado)
+dados/           predios.json (simulado) + arquivos gerados ao rodar (banco olhodagua.db, totais dos hidrômetros)
+testes/          teste_mqtt.py (confere se a conexão com o broker funciona)
 documentos/      decisões, perguntas da banca, benefícios sociais, BMC, guia de dois computadores
 ```
