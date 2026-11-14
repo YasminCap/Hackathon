@@ -8,6 +8,28 @@ Projeto do SmartCities Hackathon Londrina 2026 — tema: Transformação Digital
 > (uma foto do mostrador do hidrômetro a cada 30 min).
 > Todos os dados e tarifas de exemplo são **simulados**.
 
+## Acesso às plataformas
+
+Com o simulador e o backend rodando (ver [Como rodar](#como-rodar-windows)), abra no navegador:
+
+| Plataforma | Endereço | Para quê |
+|---|---|---|
+| 💧 **Painel do gestor** | <http://127.0.0.1:8000> | Mapa, alertas com o campo de operação, gráficos de consumo |
+| 🎛️ **Controle da demonstração** | <http://127.0.0.1:8001> | Escolher a unidade e iniciar um vazamento (tipo sorteado) |
+| 📄 **Documentação da API** | <http://127.0.0.1:8000/docs> | Rotas do backend, para testar direto no navegador |
+
+> Os endereços `127.0.0.1` só funcionam **no computador que está rodando os programas**.
+> Se o simulador estiver num notebook e o painel em outro, cada um abre o seu endereço
+> (veja o [GUIA_DOIS_COMPUTADORES.md](GUIA_DOIS_COMPUTADORES.md)).
+> Se aparecer uma tela antiga, aperte **Ctrl+Shift+R**.
+
+**Outros links do projeto**
+
+- Código no GitHub: <https://github.com/YasminCap/Hackathon>
+- Apresentação técnica (slides): <https://claude.ai/artifact/TjFKiYPJRyHW2vbP9EgxL6>
+  — privada; só abre para quem a dona compartilhar pelo menu *Share* da apresentação.
+- Material de apoio ao pitch: [materiais-pitch/BENEFICIOS_SOCIAIS.md](materiais-pitch/BENEFICIOS_SOCIAIS.md)
+
 ## Como rodar (Windows)
 
 ```bash
