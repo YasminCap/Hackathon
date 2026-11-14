@@ -31,8 +31,9 @@ DB_CAMINHO = Path(os.getenv("DB_CAMINHO") or RAIZ / "olhodagua.db")
 # --- Painel ---
 PASTA_PAINEL = RAIZ / "painel"
 
-# Prédio é considerado "online" se mandou leitura nos últimos N segundos REAIS
-SEGUNDOS_ONLINE = 10
+# Prédio é considerado "online" se mandou leitura nos últimos N segundos REAIS.
+# Com a "câmera" fotografando a cada 30 min simulados (30 s reais no fator 60), 90 s = ~3 fotos.
+SEGUNDOS_ONLINE = int(os.getenv("SEGUNDOS_ONLINE") or 90)
 
 # --- Telegram ---
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN") or None
@@ -41,10 +42,13 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID") or None
 # --- Detecção (tempos em minutos SIMULADOS) ---
 MODO_DEMO = (os.getenv("MODO_DEMO") or "0") == "1"
 
-# Fora do horário: fluxo contínuo > 0 por mais que isso → vazamento
-LIMITE_FLUXO_CONTINUO_MIN = 10 if MODO_DEMO else 30
-# No horário: janela usada para comparar o consumo com a média da mesma faixa
-JANELA_EXCESSO_MIN = 20 if MODO_DEMO else 60
+# Leituras vêm de fotos do hidrômetro (ESP32-CAM): uma a cada PERIODO_LEITURA_MIN simulados.
+# (O detector mede o período de verdade pelas próprias leituras; este é o valor padrão.)
+PERIODO_LEITURA_MIN = float(os.getenv("PERIODO_LEITURA_MIN") or 30)
+# Fora do horário: consumo em N fotos seguidas → vazamento (3 fotos ≈ 1 h entre a 1ª e a 3ª)
+LEITURAS_VAZAMENTO = 2 if MODO_DEMO else 3
+# No horário: janela usada para comparar o consumo com a média da mesma faixa (2 fotos)
+JANELA_EXCESSO_MIN = 60
 # Consumo da janela acima de FATOR × média da faixa → consumo excessivo
 FATOR_EXCESSO = 2.0
 # E o excesso precisa ser de pelo menos isso (L/min) — evita alarme quando a média é quase zero
@@ -52,9 +56,11 @@ MIN_EXCESSO_LPM = 2.0
 # Abaixo disso (× média) o consumo excessivo é considerado resolvido (histerese)
 FATOR_EXCESSO_RESOLVIDO = 1.3
 # Depois de resolvido, espera isso antes de abrir outro alerta no mesmo prédio
-COOLDOWN_MIN = 15 if MODO_DEMO else 120
+COOLDOWN_MIN = 30 if MODO_DEMO else 120
 # Buraco entre leituras maior que isso quebra a sequência (ex.: relógio adiantado)
 LACUNA_MAX_MIN = 15
+# Leitura suspeita (foto lida errado): total menor que o anterior ou subida acima disso
+SALTO_MAXIMO_LPM = 300
 
 
 def carregar_predios() -> dict[str, dict]:

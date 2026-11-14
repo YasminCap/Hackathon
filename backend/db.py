@@ -147,7 +147,9 @@ def consumo_por_hora(dispositivo: str, horas: int) -> list[dict]:
         if not ultima:
             return []
         linhas = con.execute(
-            """SELECT substr(ts_local, 1, 13) || ':00' AS hora,
+            # "- 1 minute": a foto das 07:00 mostra o que passou ATÉ as 07:00 (06:30–07:00),
+            # então esses litros pertencem à hora das 06h.
+            """SELECT substr(datetime(ts_local, '-1 minute'), 1, 13) || ':00' AS hora,
                       ROUND(SUM(litros), 2)        AS litros,
                       ROUND(MAX(vazao_lpm), 2)     AS vazao_max_lpm,
                       COUNT(*)                     AS leituras
@@ -155,11 +157,21 @@ def consumo_por_hora(dispositivo: str, horas: int) -> list[dict]:
                WHERE dispositivo = ?
                  AND ts_local >  datetime(?, ?)
                  AND ts_local <= ?
-               GROUP BY substr(ts_local, 1, 13)
+               GROUP BY substr(datetime(ts_local, '-1 minute'), 1, 13)
                ORDER BY hora""",
             (dispositivo, ultima["ts_local"], f"-{int(horas)} hours", ultima["ts_local"]),
         ).fetchall()
     return [dict(r) for r in linhas]
+
+
+def ultima_leitura(dispositivo: str) -> dict | None:
+    """Leitura aceita mais recente do prédio (para conferir a próxima foto)."""
+    with conexao() as con:
+        r = con.execute(
+            "SELECT total_litros, ts_local FROM leituras WHERE dispositivo = ? ORDER BY id DESC LIMIT 1",
+            (dispositivo,),
+        ).fetchone()
+    return dict(r) if r else None
 
 
 def contar_leituras() -> int:
