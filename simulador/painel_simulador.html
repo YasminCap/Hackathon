@@ -38,7 +38,7 @@
       <h2 class="text-lg font-semibold">Demonstração em 1 clique</h2>
       <p class="text-sm text-slate-500 mt-1 mb-4">
         Coloca o relógio de madrugada e abre uma torneira na <b>Escola Municipal Exemplo 1</b>.<br>
-        Em cerca de <b>30 segundos</b> o alerta aparece no painel da prefeitura.
+        Em cerca de <b>1 a 2 minutos</b> o alerta aparece no painel da prefeitura<br>(a “câmera” fotografa o hidrômetro a cada 30 min simulados).
       </p>
       <button onclick="demonstracao()"
               class="bg-red-600 hover:bg-red-700 text-white text-lg font-semibold px-6 py-3 rounded-xl shadow">
@@ -80,7 +80,7 @@
       <ul id="lista" class="divide-y divide-slate-100"></ul>
     </section>
 
-    <p class="text-xs text-slate-400 text-center">O tempo aqui corre 60× mais rápido: 1 minuto de verdade = 1 hora na simulação.</p>
+    <p class="text-xs text-slate-400 text-center">O tempo aqui corre 60× mais rápido: 1 minuto de verdade = 1 hora na simulação.<br>A “câmera” de cada prédio fotografa o hidrômetro a cada 30 minutos simulados (30 segundos de verdade).</p>
   </main>
 
   <!-- aviso rápido ("toast") -->
@@ -120,7 +120,7 @@ async function demonstracao() {
   // quando já é noite — o alerta ficaria com uma duração enorme)
   if (estado?.predios.some(p => p.em_horario)) await post("/api/madrugada");
   if (await post("/api/cenario/escola1/torneira"))
-    avisar("Torneira aberta na Escola 1. Olhe o painel da prefeitura em ~30 s.");
+    avisar("Torneira aberta na Escola 1. O alerta aparece no painel em 1 a 2 minutos.");
 }
 
 async function consertarTudo() {

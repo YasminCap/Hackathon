@@ -2,8 +2,9 @@
 simulador.py — hidrômetros SIMULADOS dos prédios municipais (Olho d'Água):
 escolas, CMEIs, secretarias, UBS, esporte, cultura e assistência social.
 
-Faz o papel que um ESP32 com sensor de vazão faria em cada prédio:
-  • publica leituras em  hidrometro/<id>/leitura   (mesmo contrato do ESP32 real)
+Faz o papel da ESP32-CAM que, em cada prédio, fotografa o mostrador do hidrômetro:
+  • publica UMA leitura a cada 30 min simulados em hidrometro/<id>/leitura
+    (mesmo contrato da câmera real: total lido no mostrador + litros e média desde a foto anterior)
   • obedece comandos em  hidrometro/<id>/comando   (fechar_registro / abrir_registro)
 
 Recursos:
@@ -64,6 +65,11 @@ MQTT_PORTA = int(os.getenv("MQTT_PORTA") or (8883 if MQTT_TLS else 1883))
 MQTT_USUARIO = os.getenv("MQTT_USUARIO") or None
 MQTT_SENHA = os.getenv("MQTT_SENHA") or None
 FATOR_TEMPO_PADRAO = float(os.getenv("FATOR_TEMPO") or 60)
+# De quantos em quantos minutos SIMULADOS a "câmera" fotografa o hidrômetro
+PERIODO_LEITURA_MIN = float(os.getenv("PERIODO_LEITURA_MIN") or 30)
+# Onde o simulador guarda o total de cada hidrômetro (um hidrômetro real nunca volta a zero;
+# sem isso, ao reiniciar o simulador o backend veria o total "diminuir" e descartaria as leituras)
+ARQUIVO_TOTAIS = Path(__file__).resolve().parent / "totais_hidrometros.json"
 
 # Cenários de vazamento: faixa de vazão (L/min) sorteada na injeção
 CENARIOS = {
@@ -169,7 +175,9 @@ class Predio:
     media_diaria: float
     total_litros: float
     todos_os_dias: bool = False      # dias_uso == "todos" (abre no fim de semana)
-    vazao_lpm: float = 0.0
+    vazao_lpm: float = 0.0           # vazão real neste instante (só o simulador sabe)
+    litros_periodo: float = 0.0      # litros desde a última "foto"
+    minutos_periodo: float = 0.0     # minutos simulados desde a última "foto"
     registro_aberto: bool = True
     cenario: str | None = None
     cenario_vazao: float = 0.0
@@ -241,17 +249,23 @@ class Simulador:
         self.predios = self._carregar_predios()
         self.mqtt = self._criar_cliente_mqtt()
         self._ultima_hora_logada = None
+        self._ultima_foto = None  # número da última janela de PERIODO_LEITURA_MIN fotografada
 
     # ---------------------------------------------------------------- cadastro
     def _carregar_predios(self) -> dict[str, Predio]:
         with open(RAIZ / "dados" / "predios.json", encoding="utf-8") as f:
             cadastro = json.load(f)["predios"]
+        try:
+            totais_salvos = json.loads(ARQUIVO_TOTAIS.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            totais_salvos = {}
         predios = {}
         for p in cadastro:
             if not p["ativo"]:
                 continue  # prédio desativado não tem hidrômetro publicando
             rng = random.Random(p["id"])  # leitura inicial estável por prédio
-            predio = predio_do_cadastro(p, round(rng.uniform(100_000, 900_000), 1))
+            total = totais_salvos.get(p["id"], round(rng.uniform(100_000, 900_000), 1))
+            predio = predio_do_cadastro(p, total)
             predios[predio.id] = predio
         print(f"[OK] {len(predios)} prédios ativos carregados de dados/predios.json")
         return predios
@@ -329,46 +343,68 @@ class Simulador:
         esperada = p.vazao_esperada(instante)
         if esperada > 0:
             normal = esperada * random.uniform(0.6, 1.4)
-        elif random.random() < 0.01:
-            normal = random.uniform(2.0, 8.0)  # uso esporádico (vigia, limpeza) — 1 leitura só
+        elif random.random() < 0.0005:
+            normal = random.uniform(2.0, 8.0)  # uso esporádico raro (vigia, limpeza) — 2 min só
         else:
             normal = 0.0
         vazamento = p.cenario_vazao * random.uniform(0.95, 1.05) if p.cenario else 0.0
         return round(normal + vazamento, 2)
 
     def passo(self) -> None:
-        """Avança o relógio um intervalo e publica uma leitura por prédio."""
+        """Avança o relógio um intervalo. A água corre minuto a minuto (o hidrômetro gira),
+        mas só a cada PERIODO_LEITURA_MIN simulados a "câmera" fotografa e publica."""
         with self.trava:
             minutos_sim = self.intervalo_s * self.fator / 60
             self.agora += timedelta(minutes=minutos_sim)
-            carimbo = self.agora.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            # a leitura cobre o intervalo que acabou de passar: usa a vazão do MEIO dele
-            # (medir no fim jogaria 2 min de uso para antes da abertura do prédio)
+            # o consumo do intervalo usa a vazão do MEIO dele
+            # (medir no fim jogaria uso para antes da abertura do prédio)
             meio_do_intervalo = self.agora - timedelta(minutes=minutos_sim / 2)
-            mensagens = []
             for p in self.predios.values():
                 p.vazao_lpm = self._vazao_do_predio(p, meio_do_intervalo)
-                litros = round(p.vazao_lpm * minutos_sim, 2)
-                p.total_litros = round(p.total_litros + litros, 2)
-                mensagens.append((p.id, {
-                    "dispositivo": p.id,
-                    "litros": litros,
-                    "vazao_lpm": p.vazao_lpm,
-                    "total_litros": p.total_litros,
-                    "timestamp": carimbo,
-                    "simulado": True,
-                }))
+                litros = p.vazao_lpm * minutos_sim
+                p.total_litros += litros
+                p.litros_periodo += litros
+                p.minutos_periodo += minutos_sim
+
+            # Hora da foto? (uma por janela de PERIODO_LEITURA_MIN: 00:00, 00:30, 01:00...)
+            janela = int(self.agora.timestamp() // 60 // PERIODO_LEITURA_MIN)
+            mensagens = []
+            if janela != self._ultima_foto:
+                self._ultima_foto = janela
+                carimbo = self.agora.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                for p in self.predios.values():
+                    minutos = max(p.minutos_periodo, minutos_sim)
+                    mensagens.append((p.id, {
+                        "dispositivo": p.id,
+                        "total_litros": round(p.total_litros, 1),   # o que a foto mostra
+                        "litros": round(p.litros_periodo, 1),       # desde a foto anterior
+                        "vazao_lpm": round(p.litros_periodo / minutos, 2),  # média do período
+                        "timestamp": carimbo,
+                        "simulado": True,
+                    }))
+                    p.litros_periodo = 0.0
+                    p.minutos_periodo = 0.0
+                self._salvar_totais()
             total_vazao = sum(p.vazao_lpm for p in self.predios.values())
             hora = data_legivel(self.agora, "%d/%m %H:00")
 
         for pid, leitura in mensagens:
             self.mqtt.publish(f"hidrometro/{pid}/leitura", json.dumps(leitura), qos=0)
             if self.verboso:
-                print(f"  → {pid}: {leitura['vazao_lpm']:6.2f} L/min  {leitura['litros']:7.2f} L")
+                print(f"  → {pid}: {leitura['litros']:8.1f} L na meia hora  (média {leitura['vazao_lpm']:6.2f} L/min)")
 
         if hora != self._ultima_hora_logada:  # resumo uma vez por hora simulada
             self._ultima_hora_logada = hora
             print(f"[{hora}] vazão somada: {total_vazao:7.2f} L/min")
+
+    def _salvar_totais(self) -> None:
+        """Guarda o número de cada hidrômetro para continuar dele na próxima execução."""
+        try:
+            ARQUIVO_TOTAIS.write_text(
+                json.dumps({p.id: round(p.total_litros, 1) for p in self.predios.values()}),
+                encoding="utf-8")
+        except OSError as erro:
+            print(f"[!!] Não foi possível salvar os totais: {erro}")
 
     def rodar_para_sempre(self) -> None:
         proximo = time.monotonic()
