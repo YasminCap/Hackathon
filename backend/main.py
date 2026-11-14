@@ -1,21 +1,23 @@
 """
-main.py — API do Olho d'Água (FastAPI).
+main.py — API do LeakFinder Londrina (FastAPI).
 
 Ao subir:
   1. cria/abre o banco SQLite;
-  2. conecta no MQTT e começa a gravar as leituras dos hidrômetros;
-  3. liga a detecção (a cada 2 s) e o bot do Telegram (se houver TELEGRAM_TOKEN);
+  2. conecta no MQTT e começa a gravar as leituras (fotos dos hidrômetros);
+  3. liga a detecção (a cada 2 s, avalia as leituras novas);
   4. expõe a API JSON abaixo e serve o painel (pasta painel/) em http://127.0.0.1:8000
 
 Rotas:
-  GET  /api/saude                         — MQTT conectado? quantas leituras?
-  GET  /api/resumo                        — números gerais para o topo do painel
-  GET  /api/predios                       — cadastro + última leitura de cada prédio
-  GET  /api/predios/{id}/leituras?limite= — série recente (gráfico de vazão)
+  GET  /api/saude                          — MQTT conectado? quantas leituras?
+  GET  /api/resumo                         — números gerais para o topo do painel
+  GET  /api/predios                        — cadastro + última leitura de cada unidade
+  GET  /api/predios/{id}/leituras?limite=  — série recente (gráfico)
   GET  /api/predios/{id}/consumo_horario?horas= — litros por hora (horário de Londrina)
-  POST /api/predios/{id}/comando          — fechar/abrir registro via MQTT
-  GET  /api/alertas                       — alertas de vazamento/consumo excessivo
-  GET  /api/comandos                      — últimos comandos enviados
+  GET  /api/predios/{id}/semanal           — consumo por semana + média semanal de acompanhamento
+  POST /api/predios                        — incluir unidade (fica "aguardando câmera")
+  GET  /api/alertas?finalizados=           — alertas em andamento (padrão) ou finalizados (consertados)
+  POST /api/alertas/{id}/operacao          — campo de operação: pendente | informado | consertado
+  GET  /api/economia                       — água não desperdiçada e valor poupado na conta
   Documentação interativa: http://127.0.0.1:8000/docs
 
 Como rodar (na raiz do projeto):
@@ -33,13 +35,14 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from . import db
+from . import avisos, db
+from .cadastro import CadastroInvalido, incluir_unidade
 from .config import MODO_DEMO, PASTA_PAINEL, SEGUNDOS_ONLINE, carregar_predios
+from .economia import demonstrativo, economia_do_alerta
 from .deteccao import Detector
 from .mqtt_cliente import ClienteMQTT
-from .telegram_bot import NotificadorTelegram
 
 # Terminal do Windows: garante acentos nos logs
 if hasattr(sys.stdout, "reconfigure"):
@@ -50,18 +53,16 @@ IDS_ATIVOS = {pid for pid, p in PREDIOS.items() if p["ativo"]}
 
 mqtt_cliente = ClienteMQTT(IDS_ATIVOS)
 detector = Detector(PREDIOS)
-notificador = NotificadorTelegram(PREDIOS, mqtt_cliente.enviar_comando)
 
 INTERVALO_DETECCAO_S = 2
 
 
 async def laco_deteccao() -> None:
-    """A cada 2 s: avalia as regras (numa thread, por causa do SQLite) e avisa no Telegram."""
+    """A cada 2 s: avalia as regras (numa thread, por causa do SQLite) e mostra os alertas."""
     while True:
         try:
-            eventos = await asyncio.to_thread(detector.avaliar)
-            for evento in eventos:
-                await notificador.notificar(evento)
+            for evento in await asyncio.to_thread(detector.avaliar):
+                avisos.mostrar(evento)
         except Exception as erro:  # o laço não pode morrer
             print(f"[DETECÇÃO] Erro: {erro!r}")
         await asyncio.sleep(INTERVALO_DETECCAO_S)
@@ -74,19 +75,17 @@ async def ciclo_de_vida(app: FastAPI):
         print("[AVISO] Sem histórico de consumo: a regra de consumo excessivo fica desligada. "
               "Rode: .venv\\Scripts\\python.exe simulador\\gerar_historico.py")
     mqtt_cliente.iniciar()
-    await notificador.iniciar()
     tarefa = asyncio.create_task(laco_deteccao())
     print(f"[DETECÇÃO] Ligada{' (MODO_DEMO: limites curtos)' if MODO_DEMO else ''}")
-    print("[API] Pronta em http://127.0.0.1:8000  (docs em /docs)")
+    print("[API] LeakFinder Londrina pronto em http://127.0.0.1:8000  (docs em /docs)")
     yield
     tarefa.cancel()
-    await notificador.parar()
     mqtt_cliente.parar()
 
 
 app = FastAPI(
-    title="Olho d'Água — API",
-    description="Monitoramento de água dos prédios municipais de Londrina. "
+    title="LeakFinder Londrina — API",
+    description="Monitoramento de água das escolas municipais e CMEIs de Londrina. "
                 "Protótipo: todos os dados são SIMULADOS.",
     lifespan=ciclo_de_vida,
 )
@@ -109,7 +108,7 @@ def _segundos_desde(utc_iso: str) -> float:
 
 def _predio_ou_404(pid: str) -> dict:
     if pid not in PREDIOS:
-        raise HTTPException(404, f"Prédio '{pid}' não cadastrado")
+        raise HTTPException(404, f"Unidade '{pid}' não cadastrada")
     return PREDIOS[pid]
 
 
@@ -127,17 +126,14 @@ def saude():
 @app.get("/api/predios")
 def listar_predios():
     ultimas = db.ultimas_leituras()
-    registros = db.estado_registros()
     alertas = {a["dispositivo"]: a for a in db.alertas_recentes(50) if a["status"] == "ativo"}
     resposta = []
     for pid, p in PREDIOS.items():
         u = ultimas.get(pid)
-        online = bool(u) and _segundos_desde(u["recebido_em"]) <= SEGUNDOS_ONLINE
+        online = p.get("camera_instalada", True) and bool(u) and _segundos_desde(u["recebido_em"]) <= SEGUNDOS_ONLINE
         resposta.append({
             **p,
             "online": online,
-            # inativo não tem hidrômetro nem registro controlável
-            "registro": registros.get(pid, "aberto") if p["ativo"] else None,
             "vazao_lpm": u["vazao_lpm"] if online else None,
             "total_litros": u["total_litros"] if u else None,
             "ultima_leitura": u["ts_local"] if u else None,  # horário de Londrina (simulado)
@@ -151,23 +147,27 @@ def resumo():
     predios = listar_predios()["predios"]
     online = [p for p in predios if p["online"]]
     horarios = [p["ultima_leitura"] for p in predios if p["ultima_leitura"]]
+    alertas = db.alertas_recentes(200)
     return {
         "aviso": "DADOS SIMULADOS",
         "predios_cadastrados": len(predios),
         "predios_ativos": len(IDS_ATIVOS),
+        "predios_com_camera": sum(1 for p in predios if p["ativo"] and p.get("camera_instalada", True)),
         "predios_online": len(online),
         "vazao_total_lpm": round(sum(p["vazao_lpm"] or 0 for p in online), 2),
-        "registros_fechados": sum(1 for p in predios if p["registro"] == "fechado"),
         "alertas_ativos": sum(1 for p in predios if p["alerta"]),
-        "telegram_ativo": notificador.ativo,
+        # campo de operação: ocorrências que ninguém informou ainda à manutenção
+        "aguardando_acao": sum(1 for a in alertas if a["operacao"] == "pendente"),
+        "consertados": sum(1 for a in alertas if a["operacao"] == "consertado"),
+        "finalizados": len(db.alertas_por_operacao(finalizados=True, limite=1000)),
         "relogio_simulado": max(horarios) if horarios else None,
         "mqtt_conectado": mqtt_cliente.conectado,
     }
 
 
 @app.get("/api/predios/{pid}/leituras")
-def leituras(pid: str, limite: int = Query(180, ge=1, le=5000)):
-    """Padrão 180 leituras = 6 min reais = 6 h simuladas (fator 60, 1 leitura a cada 2 s)."""
+def leituras(pid: str, limite: int = Query(48, ge=1, le=5000)):
+    """Padrão 48 leituras = 24 h simuladas (uma foto a cada 30 min)."""
     _predio_ou_404(pid)
     return {"predio": pid, "leituras": db.leituras_recentes(pid, limite)}
 
@@ -178,34 +178,78 @@ def consumo_horario(pid: str, horas: int = Query(24, ge=1, le=24 * 31)):
     return {"predio": pid, "horas": db.consumo_por_hora(pid, horas)}
 
 
-class Comando(BaseModel):
-    acao: Literal["fechar_registro", "abrir_registro"]
-    autorizado_por: str = Field("painel", min_length=1, max_length=80)
+@app.get("/api/predios/{pid}/semanal")
+def consumo_semanal(pid: str, semanas: int = Query(8, ge=1, le=52)):
+    """Histórico semanal (segunda a domingo) e a média semanal de acompanhamento.
+    A média usa só semanas COMPLETAS (7 dias com registro) e anteriores à semana atual."""
+    _predio_ou_404(pid)
+    lista = db.consumo_semanal(pid, semanas)
+    for s in lista:
+        s["completa"] = s["dias"] >= 7
+    anteriores = [s for s in lista[:-1] if s["completa"]]
+    media = round(sum(s["litros"] for s in anteriores) / len(anteriores), 1) if anteriores else None
+    atual = lista[-1] if lista else None
+    variacao = None
+    if atual and media and atual["completa"]:
+        variacao = round((atual["litros"] - media) / media * 100, 1)
+    return {"aviso": "DADOS SIMULADOS", "predio": pid, "semanas": lista,
+            "media_semanal": media, "semanas_na_media": len(anteriores),
+            "semana_atual": atual, "variacao_pct": variacao}
 
 
-@app.post("/api/predios/{pid}/comando")
-def enviar_comando(pid: str, comando: Comando):
-    predio = _predio_ou_404(pid)
-    if not predio["ativo"]:
-        raise HTTPException(409, "Prédio inativo não tem hidrômetro")
+class NovaUnidade(BaseModel):
+    nome: str
+    tipo: Literal["escola", "cmei"]
+    regiao: str = ""
+    lat: float
+    lon: float
+    horario_uso: str
+    dias_uso: Literal["uteis", "todos"] = "uteis"
+    alunos: int
+
+
+@app.post("/api/predios", status_code=201)
+def cadastrar_unidade(corpo: NovaUnidade):
+    """Inclui uma escola ou CMEI. Fica 'aguardando câmera' até a ESP32-CAM ser instalada."""
     try:
-        return mqtt_cliente.enviar_comando(pid, comando.acao, comando.autorizado_por)
-    except ConnectionError as erro:
-        raise HTTPException(503, str(erro)) from erro
+        unidade = incluir_unidade(corpo.model_dump(), PREDIOS)
+    except CadastroInvalido as erro:
+        raise HTTPException(400, str(erro)) from erro
+    IDS_ATIVOS.add(unidade["id"])            # leituras dela passam a ser aceitas
+    detector.predios[unidade["id"]] = unidade
+    print(f"[CADASTRO] Nova unidade {unidade['id']}: {unidade['nome']} (aguardando câmera)")
+    return unidade
 
 
 @app.get("/api/alertas")
-def listar_alertas(limite: int = Query(30, ge=1, le=200)):
-    """Alertas ativos primeiro, depois os mais recentes."""
-    alertas = db.alertas_recentes(limite)
+def listar_alertas(finalizados: bool = False, limite: int = Query(30, ge=1, le=200)):
+    """finalizados=false (padrão): alertas em andamento, ativos primeiro.
+    finalizados=true: aba Finalizados — operação marcada como 'consertado'."""
+    alertas = db.alertas_por_operacao(finalizados, limite)
     for a in alertas:
         a["nome"] = PREDIOS.get(a["dispositivo"], {}).get("nome", a["dispositivo"])
+        a["economia"] = economia_do_alerta(a)
     return {"aviso": "DADOS SIMULADOS", "alertas": alertas}
 
 
-@app.get("/api/comandos")
-def comandos(limite: int = Query(20, ge=1, le=200)):
-    return {"comandos": db.comandos_recentes(limite)}
+@app.get("/api/economia")
+def economia():
+    """Demonstrativo da água que não foi desperdiçada e do valor poupado na conta (simulado)."""
+    return demonstrativo(db.todos_alertas())
+
+
+class Operacao(BaseModel):
+    operacao: Literal["pendente", "informado", "consertado"]
+
+
+@app.post("/api/alertas/{alerta_id}/operacao")
+def definir_operacao(alerta_id: int, corpo: Operacao):
+    """Campo de operação preenchido pelo gestor: a manutenção já foi informada? Já consertou?"""
+    alerta = db.definir_operacao(alerta_id, corpo.operacao)
+    if not alerta:
+        raise HTTPException(404, f"Alerta {alerta_id} não existe")
+    print(f"[OPERAÇÃO] Alerta {alerta_id} ({alerta['dispositivo']}): {corpo.operacao}")
+    return alerta
 
 
 # --------------------------------------------------------------------- painel
@@ -215,7 +259,7 @@ def pagina_inicial():
     if indice.exists():
         return FileResponse(indice)
     return HTMLResponse(
-        "<h1>Olho d'Água — API no ar</h1>"
+        "<h1>LeakFinder Londrina — API no ar</h1>"
         "<p>O painel (painel/index.html) ainda não foi criado. "
         "Veja a API em <a href='/docs'>/docs</a>.</p>"
     )

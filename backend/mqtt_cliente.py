@@ -2,7 +2,6 @@
 mqtt_cliente.py — ponte entre o broker MQTT e o banco.
 
   • Assina  hidrometro/+/leitura, valida cada mensagem e grava no SQLite.
-  • Publica hidrometro/<id>/comando (fechar_registro / abrir_registro) e registra no banco.
 
 Validação importa: no broker público qualquer um pode publicar nesses tópicos.
 Só aceitamos prédios do cadastro e mensagens no contrato oficial.
@@ -19,9 +18,28 @@ import paho.mqtt.client as mqtt
 
 from . import db
 from .config import (FUSO_LOCAL, MQTT_BROKER, MQTT_PORTA, MQTT_SENHA, MQTT_TLS,
-                     MQTT_USUARIO)
+                     MQTT_USUARIO, SALTO_MAXIMO_LPM)
 
-ACOES_VALIDAS = ("fechar_registro", "abrir_registro")
+
+def conferir_com_anterior(leitura: dict, anterior: dict | None) -> None:
+    """A leitura vem de uma FOTO do hidrômetro: a câmera pode ler um dígito errado.
+    O mostrador só anda para a frente e não dá saltos impossíveis; se der, a leitura
+    é descartada (a próxima foto corrige, porque traz o total certo)."""
+    if not anterior:
+        return
+    if leitura["total_litros"] < anterior["total_litros"] - 0.5:
+        raise LeituraInvalida(
+            f"leitura suspeita: total diminuiu ({anterior['total_litros']:.1f} → "
+            f"{leitura['total_litros']:.1f} L) — provável erro na leitura da foto")
+    t_ant = datetime.strptime(anterior["ts_local"], "%Y-%m-%d %H:%M:%S")
+    t_nova = datetime.strptime(leitura["ts_local"], "%Y-%m-%d %H:%M:%S")
+    minutos = (t_nova - t_ant).total_seconds() / 60
+    salto = leitura["total_litros"] - anterior["total_litros"]
+    if minutos > 0 and salto / minutos > SALTO_MAXIMO_LPM:
+        raise LeituraInvalida(
+            f"leitura suspeita: salto de {salto:.0f} L em {minutos:.0f} min — "
+            "provável erro na leitura da foto")
+
 
 
 class LeituraInvalida(ValueError):
@@ -116,6 +134,7 @@ class ClienteMQTT:
     def _ao_receber(self, client, userdata, msg):
         try:
             leitura = validar_leitura(msg.topic, msg.payload, self.ids_validos)
+            conferir_com_anterior(leitura, db.ultima_leitura(leitura["dispositivo"]))
             db.inserir_leitura(leitura)
             with self._trava:
                 self.recebidas += 1
@@ -123,26 +142,8 @@ class ClienteMQTT:
             with self._trava:
                 self.rejeitadas += 1
                 primeira_vez = self.rejeitadas <= 5
-            if primeira_vez:  # evita inundar o terminal se alguém spammar o broker
+            # leitura suspeita (foto lida errado) sempre aparece; lixo de terceiros só as 5 primeiras
+            if primeira_vez or "suspeita" in str(erro):
                 print(f"[MQTT] Leitura rejeitada ({msg.topic}): {erro}")
         except Exception as erro:  # erro de banco etc. não pode derrubar a thread do MQTT
             print(f"[MQTT] Erro ao gravar leitura de {msg.topic}: {erro!r}")
-
-    # ------------------------------------------------------------------ comandos
-    def enviar_comando(self, dispositivo: str, acao: str, autorizado_por: str) -> dict:
-        """Publica o comando no contrato oficial e registra no banco."""
-        if acao not in ACOES_VALIDAS:
-            raise ValueError(f"ação inválida: {acao}")
-        if not self.conectado:
-            raise ConnectionError("MQTT desconectado — comando não enviado")
-        comando = {
-            "acao": acao,
-            "autorizado_por": autorizado_por,
-            "timestamp": db.agora_utc(),
-        }
-        info = self.cliente.publish(f"hidrometro/{dispositivo}/comando", json.dumps(comando), qos=1)
-        if info.rc != mqtt.MQTT_ERR_SUCCESS:
-            raise ConnectionError(f"falha ao publicar comando (rc={info.rc})")
-        comando["id"] = db.registrar_comando(dispositivo, acao, autorizado_por, comando["timestamp"])
-        print(f"[CMD] {dispositivo}: {acao} (autorizado por {autorizado_por})")
-        return comando

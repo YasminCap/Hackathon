@@ -1,1 +1,1 @@
-"""Backend do Olho d'Água (FastAPI + MQTT + SQLite)."""
+"""Backend do LeakFinder Londrina (FastAPI + MQTT + SQLite)."""

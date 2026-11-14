@@ -1,4 +1,4 @@
-# Olho d'Água — dependências do projeto (Python 3.11+)
+# LeakFinder Londrina — dependências do projeto (Python 3.11+)
 
 # MQTT (API de callbacks VERSION2)
 paho-mqtt>=2.1,<3
@@ -10,6 +10,4 @@ uvicorn[standard]>=0.30
 # Credenciais e configurações via .env
 python-dotenv>=1.0
 
-# Bot de alertas com botões "Fechar registro" / "Reabrir registro"
-python-telegram-bot>=21,<23
 
