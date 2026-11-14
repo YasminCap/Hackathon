@@ -1,6 +1,7 @@
 """
-simulador.py — hidrômetros SIMULADOS dos prédios municipais (Olho d'Água):
-escolas, CMEIs, secretarias, UBS, esporte, cultura e assistência social.
+simulador.py — hidrômetros SIMULADOS das escolas municipais e CMEIs (Olho d'Água).
+Também traz perfis de outros prédios da prefeitura (secretarias, UBS, esporte, cultura,
+CRAS) para a fase 2; o cadastro do protótipo (dados/predios.json) usa só escolas e CMEIs.
 
 Faz o papel da ESP32-CAM que, em cada prédio, fotografa o mostrador do hidrômetro:
   • publica UMA leitura a cada 30 min simulados em hidrometro/<id>/leitura

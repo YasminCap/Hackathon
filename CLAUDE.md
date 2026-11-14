@@ -4,7 +4,8 @@ Projeto do SmartCities Hackathon Londrina 2026 (13 a 15/11/2026, SENAI Londrina,
 Responda sempre em português. Entregue arquivos completos, comentados e prontos para rodar.
 
 ## O que é
-Plataforma para a Prefeitura de Londrina monitorar em tempo real a água dos prédios municipais: escolas (1º ao 5º ano), CMEIs, secretarias/sede, UBS, esporte e cultura (ginásio, centro cultural) e assistência social (CRAS).
+Plataforma para a Prefeitura de Londrina monitorar em tempo real a água dos prédios municipais.
+**O protótipo é focado em escolas municipais (1º ao 5º ano) e CMEIs** (decisão do time em 14/11); a visão é municipal e os demais prédios (secretarias, UBS, esporte, cultura, CRAS) ficam como fase 2, só no slide.
 Detecta vazamentos, avisa a manutenção pelo Telegram, gera ordem de serviço e mostra a economia em R$.
 
 ## Decisões fixas (não mudar sem o time pedir)
@@ -43,10 +44,10 @@ Comando — tópico `hidrometro/<id>/comando`:
 ```
 Ações: `fechar_registro`, `abrir_registro`. No protótipo, o simulador zera a vazão do prédio enquanto o registro estiver fechado.
 
-Cadastro de prédios (`dados/predios.json`): `id`, `nome`, `tipo` (escola|cmei|administrativo|saude|esporte|cultura|assistencia), `regiao`, `lat`, `lon` (em Londrina), `ativo`, `horario_uso` (ex.: "07:00-17:30"), `dias_uso` (`uteis` = seg a sex | `todos`), `media_diaria_litros`.
+Cadastro de prédios (`dados/predios.json`): `id`, `nome`, `tipo` (escola|cmei no protótipo; administrativo|saude|esporte|cultura|assistencia na fase 2), `regiao`, `lat`, `lon` (em Londrina), `ativo`, `horario_uso` (ex.: "07:00-17:30"), `dias_uso` (`uteis` = seg a sex | `todos`), `media_diaria_litros`.
 
 ## Simulador
-- 9 a 15 prédios, quantidades parecidas entre os tipos, nomes fictícios ("Escola Municipal Exemplo 1", "UBS Exemplo 1"), consumo realista com perfil por tipo (entrada, merenda, almoço, banhos, limpeza); zero fora do horário e nos dias sem funcionamento.
+- Só escolas e CMEIs: 6 escolas (1 desativada) e 4 CMEIs, nomes fictícios ("Escola Municipal Exemplo 1", "CMEI Exemplo 1"), consumo realista com perfil por tipo (entrada, intervalo, merenda, banho, limpeza); zero fora do horário e no fim de semana. O simulador também conhece perfis de outros tipos de prédio (para a fase 2), mas o cadastro do protótipo não os usa.
 - Publica uma leitura a cada 30 min simulados, como a ESP32-CAM (internamente o consumo é calculado minuto a minuto).
 - Tempo acelerado configurável (padrão: 1 min real = 1 h simulada → uma leitura a cada 30 s reais) e "modo madrugada".
 - Cenários injetáveis por prédio: `descarga` (0,5–3 L/min contínuo), `boia` (vazão média contínua), `cano_rompido` (salto para vazão alta), `torneira` (5–10 L/min contínuo).
@@ -69,6 +70,7 @@ Cadastro de prédios (`dados/predios.json`): `id`, `nome`, `tipo` (escola|cmei|a
 6. Ordens de serviço + contador de R$ economizados.
 
 ## Ideias futuras (só slide — não implementar no protótipo)
+- **Fase 2 — todos os prédios municipais:** secretarias/sede, UBS, ginásios, centros culturais e CRAS no mesmo painel.
 - **Escolas Guardiãs:** ranking de redução de consumo de cada prédio contra a própria média.
 - **Auditor de contas da Sanepar + laudo PDF:** comparar o m³ faturado com o m³ medido pelo nosso hidrômetro e apontar
   leitura estimada acima do medido (>10%), faturado muito acima do medido (>20%), categoria errada, prédio inativo pagando

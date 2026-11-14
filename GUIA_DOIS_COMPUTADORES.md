@@ -108,7 +108,7 @@ Depois, sempre:
 ```
 
 Abra no navegador: **http://127.0.0.1:8000**
-Confira: **"Unidades online: 12 de 12"** — isso prova que as leituras do notebook 1 estão chegando.
+Confira: **"Unidades online: 9 de 9"** — isso prova que as leituras do notebook 1 estão chegando.
 
 ---
 

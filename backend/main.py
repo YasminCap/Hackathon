@@ -86,7 +86,7 @@ async def ciclo_de_vida(app: FastAPI):
 
 app = FastAPI(
     title="Olho d'Água — API",
-    description="Monitoramento de água dos prédios municipais de Londrina. "
+    description="Monitoramento de água das escolas municipais e CMEIs de Londrina. "
                 "Protótipo: todos os dados são SIMULADOS.",
     lifespan=ciclo_de_vida,
 )

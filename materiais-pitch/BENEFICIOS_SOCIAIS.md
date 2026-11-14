@@ -1,8 +1,8 @@
 # Olho d'Água — Benefícios sociais
 
 > Material de apoio ao pitch do SmartCities Hackathon Londrina 2026.
-> O protótipo começa pelos prédios da prefeitura (escolas, CMEIs, UBS, secretarias...), mas a
-> **visão é municipal**: dar à cidade de Londrina olhos sobre a própria água.
+> O protótipo é focado em **escolas municipais e CMEIs**, mas a **visão é municipal**: depois,
+> todos os prédios da prefeitura e, em parceria com a Sanepar, a rede da cidade.
 > Números de exemplo do protótipo são **simulados**; dados oficiais têm a fonte ao final.
 
 ---
@@ -75,12 +75,13 @@ pode voltar para **merenda, material escolar, remédios e manutenção**. O pain
 estimada de cada ocorrência, para a gestão enxergar o tamanho do problema.
 
 ### 3.3 Serviços essenciais funcionando: escola, creche e posto de saúde com água
-Sem água, uma escola ou um CMEI **suspende as aulas** e uma UBS **compromete o atendimento**.
+Sem água, uma escola ou um CMEI **suspende as aulas** — e as famílias que dependem da creche
+ficam sem onde deixar as crianças. Na fase 2, o mesmo vale para as UBS e o atendimento de saúde.
 Monitorar o consumo de meia em meia hora permite agir antes do problema virar notícia:
 - um cano rompido no meio do expediente vira alerta e ordem de serviço em minutos;
 - *(evolução prevista)* um prédio **sem entrada de água** — falta na rede ou boia travada — é
   detectado antes de a caixa d'água esvaziar, e a prefeitura pode **priorizar caminhão-pipa**
-  para quem não pode parar, como UBS e CMEIs.
+  para quem não pode parar, como os CMEIs (e, na fase 2, as UBS).
 
 ### 3.4 Gestão pública baseada em dados, com transparência
 Hoje a prefeitura só sabe quanto cada prédio gastou **no mês**. Com o Olho d'Água ela sabe

@@ -1,7 +1,7 @@
 # Olho d'Água
 
-Monitoramento em tempo real da água dos prédios municipais de Londrina: escolas, CMEIs,
-secretarias, UBS, esporte, cultura e assistência social.
+Monitoramento em tempo real da água das **escolas municipais e CMEIs** de Londrina
+(protótipo; a visão é estender a todos os prédios municipais).
 Projeto do SmartCities Hackathon Londrina 2026 — tema: Transformação Digital na Gestão Pública.
 
 > Protótipo de software: a leitura é **simulada**, no mesmo contrato MQTT que a ESP32-CAM real usaria
