@@ -146,8 +146,8 @@
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Consumo médio (última foto)</div><div id="info-vazao" class="font-semibold">--</div></div>
             <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Horário de uso</div><div id="info-horario" class="font-semibold">--</div></div>
-            <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Média por dia</div><div id="info-media" class="font-semibold">--</div></div>
-            <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Média semanal</div><div id="info-semanal" class="font-semibold">--</div></div>
+            <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Média por dia (registrada)</div><div id="info-media" class="font-semibold">--</div></div>
+            <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Média semanal (registrada)</div><div id="info-semanal" class="font-semibold">--</div></div>
           </div>
 
           <!-- Histórico semanal -->
@@ -182,7 +182,7 @@
         <h2 class="text-lg font-semibold text-slate-900">Cadastrar unidade</h2>
         <p class="text-sm text-slate-500 mb-4">
           A unidade entra no mapa como <b>aguardando câmera</b> e passa a ser monitorada quando a ESP32-CAM for instalada.
-          A média diária é calculada pelo número de alunos (escola: 10 L por aluno; CMEI: 25 L por criança).
+          Não é preciso informar consumo: a <b>média é medida pelo consumo semanal registrado</b> depois que as leituras começam.
         </p>
         <form id="form-cadastro" class="grid md:grid-cols-2 gap-5" novalidate>
           <div class="space-y-3">
@@ -210,23 +210,23 @@
                 <input name="fecha" type="time" value="17:30" class="campo mt-1">
               </label>
             </div>
-            <div class="grid grid-cols-2 gap-3">
-              <label class="block text-sm">Dias de funcionamento
-                <select name="dias_uso" class="campo mt-1">
-                  <option value="uteis">Segunda a sexta</option>
-                  <option value="todos">Todos os dias</option>
-                </select>
-              </label>
-              <label class="block text-sm">Número de alunos
-                <input name="alunos" type="number" min="1" max="3000" value="300" class="campo mt-1">
-              </label>
-            </div>
-            <p id="cad-media" class="text-sm text-slate-600"></p>
+            <label class="block text-sm">Dias de funcionamento
+              <select name="dias_uso" class="campo mt-1">
+                <option value="uteis">Segunda a sexta</option>
+                <option value="todos">Todos os dias</option>
+              </select>
+            </label>
+            <label class="block text-sm">Endereço
+              <div class="flex gap-2 mt-1">
+                <input name="endereco" class="campo" placeholder="Ex.: Rua Sergipe, 500">
+                <button type="button" id="btn-localizar" class="shrink-0 bg-slate-100 hover:bg-slate-200 text-sm font-medium px-3 rounded-lg">📍 Localizar no mapa</button>
+              </div>
+            </label>
             <p id="cad-erro" class="text-sm text-red-600 min-h-[1.25rem]"></p>
             <button type="submit" class="bg-sky-600 hover:bg-sky-700 text-white font-medium px-5 py-2 rounded-lg">Salvar unidade</button>
           </div>
           <div>
-            <div class="text-sm mb-1">Local da unidade <span class="text-slate-500">(clique no mapa)</span></div>
+            <div class="text-sm mb-1">Local da unidade <span class="text-slate-500">(localize pelo endereço ou clique no mapa para ajustar)</span></div>
             <div id="mapa-cadastro" class="h-80 rounded-lg overflow-hidden border border-slate-200"></div>
             <p id="cad-local" class="text-xs text-slate-500 mt-1">Nenhum local marcado.</p>
           </div>
@@ -258,7 +258,7 @@
     </div>
 
     <footer class="text-xs text-slate-400 text-center py-4">
-      Protótipo do SmartCities Hackathon Londrina 2026 · unidades, alunos, consumos e valores são simulados.
+      Protótipo do SmartCities Hackathon Londrina 2026 · unidades, consumos e valores são simulados.
     </footer>
   </main>
 
@@ -266,6 +266,6 @@
   <div id="aviso" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-[1000]"></div>
 
 <!-- ?v=: mude o número quando alterar o app.js, para o navegador não usar a versão antiga -->
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

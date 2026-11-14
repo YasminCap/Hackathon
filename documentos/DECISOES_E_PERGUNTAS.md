@@ -64,6 +64,7 @@
 | 14/11 | **Histórico semanal** guardado e **média semanal de acompanhamento** por unidade (só semanas completas). | Permite ver tendência e comparar a semana atual com o normal daquela unidade. |
 | 14/11 | **Demonstrativo de economia**: água não desperdiçada e valor poupado. Hipótese de **30 dias** sem o sistema; tarifa **R$ 7,00/m³** (tarifa média de água da Sanepar 2026, sem esgoto). | Mostra o retorno do projeto em litros e em reais. A tarifa sem esgoto deixa a estimativa conservadora. |
 | 14/11 | **Cadastro de unidade** pelo painel; a unidade nova fica **aguardando câmera** até a instalação. | É assim na vida real: primeiro se cadastra, depois se instala o equipamento. |
+| 14/11 | Cadastro **com endereço** (localizado no mapa pelo OpenStreetMap) e **sem número de alunos**. | O gestor sabe o endereço, não o consumo esperado. A média de cada unidade é **medida pelo consumo semanal registrado**; os "alunos" das unidades de exemplo só servem para o simulador gerar consumo realista. |
 
 ### Modelo de negócio
 
@@ -167,8 +168,9 @@ esgoto** — então o valor real tende a ser maior. *(Atenção: um cano estoura
 porque aparece água. Se a banca questionar, admitir que para vazamentos grandes a hipótese é generosa.)*
 
 **23. E quando entra uma escola nova?**
-O gestor cadastra pelo próprio painel (nome, local no mapa, horário, número de alunos). Ela aparece como "aguardando
-câmera" e passa a ser monitorada assim que a ESP32-CAM é instalada.
+O gestor cadastra pelo próprio painel (nome, tipo, horário e endereço, que vira um ponto no mapa). Ela aparece como
+"aguardando câmera" e passa a ser monitorada assim que a ESP32-CAM é instalada. A média de consumo não é informada:
+ela é medida pelo consumo semanal registrado.
 
 **21. Existem soluções parecidas no mercado?**
 *(Não pesquisamos concorrentes. Se a banca perguntar, citar o diferencial: sem obra, sem tomada, foco em prédios públicos e remuneração pela economia. Vale pesquisar antes do pitch.)*

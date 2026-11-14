@@ -100,8 +100,10 @@ O painel tem três abas:
 - **Visão geral** — unidades online, alertas, *Aguardando ação*, **demonstrativo de economia**
   (água que não foi desperdiçada e valor poupado na conta — simulado), mapa, alertas em andamento e o
   detalhe de cada unidade com o **histórico semanal** e a **média semanal** de acompanhamento.
-- **Cadastrar unidade** — inclui uma escola ou CMEI (nome, tipo, região, local no mapa, horário, alunos);
-  ela aparece como **aguardando câmera** até a ESP32-CAM ser instalada.
+- **Cadastrar unidade** — inclui uma escola ou CMEI (nome, tipo, região, horário e **endereço**; o botão
+  *Localizar no mapa* encontra o ponto pelo OpenStreetMap). Não se informa número de alunos nem consumo:
+  a média é **medida pelo consumo semanal registrado**. A unidade aparece como **aguardando câmera** até a
+  ESP32-CAM ser instalada.
 - **Finalizados** — alertas cuja operação foi marcada como **Consertado**, com a economia de cada um.
 
 **Campo de operação:** cada alerta tem a caixa *Operação* — **Pendente** → **Informado à manutenção**
