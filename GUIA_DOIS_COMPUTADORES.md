@@ -117,8 +117,8 @@ Confira: **"Unidades online: 12 de 12"** — isso prova que as leituras do noteb
 | Passo | Quem | O que fazer | O que deve acontecer |
 |---|---|---|---|
 | 1 | Simulador | Clicar **▶ Simular vazamento** | A Escola Municipal Exemplo 1 fica "Torneira aberta" |
-| 2 | Gestor | Esperar ~30 segundos | Aparece **🚨 Vazamento provável** e o ponto vermelho no mapa |
-| 3 | Gestor | Clicar **🔒 Fechar registro** no alerta | Em instantes o alerta vira **✅ Resolvido** |
+| 2 | Gestor | Esperar **1 a 2 minutos** (a “câmera” fotografa a cada 30 s reais) | Aparece **🚨 Vazamento provável** e o ponto vermelho no mapa |
+| 3 | Gestor | Clicar **🔒 Fechar registro** no alerta | Em até ~1 minuto (próximas fotos) o alerta vira **✅ Resolvido** |
 | 4 | Simulador | Olhar a lista "Como estão os prédios agora" | A Escola 1 aparece como **Água cortada** |
 | 5 | Simulador | Clicar **🔧 Consertar tudo e recomeçar** | Tudo volta ao normal para a próxima rodada |
 
@@ -140,7 +140,7 @@ Confira: **"Unidades online: 12 de 12"** — isso prova que as leituras do noteb
 |---|---|
 | Simulador mostra **🔴 sem conexão (MQTT)** | Confira a internet e rode `teste_mqtt.py`. Wi-Fi de evento às vezes bloqueia esse tipo de conexão: use o **roteador do celular** de alguém. |
 | Painel mostra **0 de 12 unidades online** | O simulador está desligado ou sem internet no notebook 1. Se usam `.env`, confira se é **o mesmo** nos dois. |
-| O alerta não aparece | Tem que ser **madrugada na simulação** (o botão "Simular vazamento" já cuida disso) e esperar ~30 s. |
+| O alerta não aparece | Tem que ser **madrugada na simulação** (o botão "Simular vazamento" já cuida disso) e esperar 1 a 2 minutos. |
 | O painel mostra a tela antiga | Aperte **Ctrl+Shift+R** no navegador. |
 | "py" ou "python" não é reconhecido | Reinstale o Python marcando **"Add python.exe to PATH"**. |
 | "git" não é reconhecido | Instale o Git (<https://git-scm.com/download/win>) e abra um terminal novo. |

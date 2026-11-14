@@ -53,7 +53,7 @@
       </div>
       <div class="cartao p-4 flex gap-3 items-start">
         <div class="w-10 h-10 rounded-lg bg-sky-50 grid place-items-center text-lg shrink-0">💧</div>
-        <div><div class="text-xs text-slate-500">Água passando agora</div>
+        <div><div class="text-xs text-slate-500">Consumo médio (última foto)</div>
           <div id="c-vazao" class="text-2xl font-bold text-slate-900">--</div>
           <div class="text-xs text-slate-400">soma de todas as unidades</div></div>
       </div>
@@ -110,14 +110,14 @@
           <div class="ml-auto" id="acoes-predio"></div>
         </div>
         <div class="grid grid-cols-3 gap-3 text-sm">
-          <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Água agora</div><div id="info-vazao" class="font-semibold">--</div></div>
+          <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Média da última foto</div><div id="info-vazao" class="font-semibold">--</div></div>
           <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Horário de uso</div><div id="info-horario" class="font-semibold">--</div></div>
           <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Média por dia</div><div id="info-media" class="font-semibold">--</div></div>
         </div>
         <div class="grid md:grid-cols-2 gap-5">
           <div>
-            <div class="text-sm font-medium text-slate-700">Água passando (litros por minuto)</div>
-            <div class="text-xs text-slate-400 mb-2">últimas 6 horas da simulação</div>
+            <div class="text-sm font-medium text-slate-700">Consumo médio por foto (litros por minuto)</div>
+            <div class="text-xs text-slate-400 mb-2">últimas 24 horas da simulação · uma foto do hidrômetro a cada 30 min</div>
             <div class="h-56"><canvas id="grafico-vazao"></canvas></div>
           </div>
           <div>
@@ -135,6 +135,6 @@
   </main>
 
 <!-- ?v=: mude o número quando alterar o app.js, para o navegador não usar a versão antiga -->
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

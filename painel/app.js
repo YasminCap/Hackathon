@@ -228,7 +228,9 @@ const opcoesBase = {
 const graficoVazao = new Chart(document.getElementById("grafico-vazao"), {
   type: "line",
   data: { labels: [], datasets: [{ data: [], borderColor: "#0284c7", backgroundColor: "rgba(14,165,233,.12)",
-                                   fill: true, pointRadius: 0, borderWidth: 2, tension: 0.25 }] },
+                                   fill: true, pointRadius: 2, borderWidth: 2,
+                                   // cada foto mostra a média da meia hora ANTERIOR a ela: degrau "before"
+                                   stepped: "before" }] },
   options: opcoesBase,
 });
 
@@ -241,7 +243,7 @@ const graficoHoras = new Chart(document.getElementById("grafico-horas"), {
 async function atualizarGraficos() {
   if (!selecionado) return;
   const [serie, horas] = await Promise.all([
-    buscar(`/api/predios/${selecionado}/leituras?limite=180`),
+    buscar(`/api/predios/${selecionado}/leituras?limite=48`),  // 48 fotos = 24 h
     buscar(`/api/predios/${selecionado}/consumo_horario?horas=24`),
   ]);
   graficoVazao.data.labels = serie.leituras.map(l => l.ts_local.slice(11, 16));
@@ -259,7 +261,8 @@ function atualizarDetalhe() {
   if (!p) return;
   const sit = situacao(p);
   document.getElementById("titulo-predio").textContent = `${tipo(p).icone} ${p.nome}`;
-  document.getElementById("sub-predio").textContent = `${tipo(p).nome} · região ${p.regiao || "—"}`;
+  document.getElementById("sub-predio").textContent = `${tipo(p).nome} · região ${p.regiao || "—"}` +
+    (p.ultima_leitura ? ` · última foto do hidrômetro às ${p.ultima_leitura.slice(11, 16)}` : "");
   document.getElementById("status-predio").innerHTML = selo(sit);
   document.getElementById("info-vazao").textContent = p.vazao_lpm != null ? `${fmt(p.vazao_lpm, 1)} L/min` : "—";
   document.getElementById("info-horario").textContent =

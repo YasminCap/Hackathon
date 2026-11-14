@@ -4,7 +4,8 @@ Monitoramento em tempo real da água dos prédios municipais de Londrina: escola
 secretarias, UBS, esporte, cultura e assistência social.
 Projeto do SmartCities Hackathon Londrina 2026 — tema: Transformação Digital na Gestão Pública.
 
-> Protótipo de software: o hidrômetro é **simulado**, no mesmo contrato MQTT que um ESP32 real usaria.
+> Protótipo de software: a leitura é **simulada**, no mesmo contrato MQTT que a ESP32-CAM real usaria
+> (uma foto do mostrador do hidrômetro a cada 30 min).
 > Todos os dados e tarifas de exemplo são **simulados**.
 
 ## Como rodar (Windows)
@@ -29,7 +30,9 @@ python teste_mqtt.py     # teste de ida e volta no broker público
 .venv\Scripts\python.exe simulador\simulador.py --madrugada  # começa às 01:00 de um dia útil
 ```
 
-- Publica `hidrometro/<id>/leitura` a cada 2 s para os prédios ativos de `dados/predios.json`.
+- Faz o papel da ESP32-CAM: publica `hidrometro/<id>/leitura` **a cada 30 min simulados** (30 s reais)
+  para os prédios ativos de `dados/predios.json`, com o total do hidrômetro e o consumo desde a foto anterior.
+- Guarda o total de cada hidrômetro em `simulador/totais_hidrometros.json` (um hidrômetro real não volta a zero).
 - Obedece `hidrometro/<id>/comando` (`fechar_registro` / `abrir_registro`).
 - Painel de controle em http://127.0.0.1:8001: injetar vazamento (descarga, boia, torneira,
   cano rompido), consertar, abrir/fechar registro, ir para a madrugada, adiantar o relógio.
@@ -49,11 +52,12 @@ Em outro terminal, com o simulador rodando:
 
 ## Detecção e alertas no Telegram
 
-O backend avalia as leituras a cada 2 s (no relógio simulado):
+O backend avalia cada nova leitura (foto) assim que ela chega, no relógio simulado:
 
-- **Vazamento** — fora do horário de uso, fluxo contínuo > 0 por mais de 30 min (10 com `MODO_DEMO=1`).
+- **Vazamento** — fora do horário de uso, consumo em 3 fotos seguidas (2 com `MODO_DEMO=1`).
 - **Consumo excessivo** — no horário de uso, litros da última hora > 2× a média da mesma faixa
-  de horário do próprio prédio (janela de 20 min com `MODO_DEMO=1`).
+  de horário do próprio prédio (2 fotos).
+- **Leitura suspeita** — total que diminui ou dá um salto impossível (foto lida errado) é descartado.
 - Causa apresentada como **provável** (pela vazão), 1 alerta ativo por prédio, aviso de
   **resolvido** quando o fluxo zera e cooldown antes de um novo alerta.
 
