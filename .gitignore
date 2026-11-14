@@ -12,7 +12,7 @@ __pycache__/
 .pytest_cache/
 
 # Totais dos hidrômetros simulados (gerado pelo simulador)
-simulador/totais_hidrometros.json
+dados/totais_hidrometros.json
 
 # Banco local (gerado em tempo de execução)
 *.db

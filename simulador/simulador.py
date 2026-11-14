@@ -69,7 +69,7 @@ FATOR_TEMPO_PADRAO = float(os.getenv("FATOR_TEMPO") or 60)
 PERIODO_LEITURA_MIN = float(os.getenv("PERIODO_LEITURA_MIN") or 30)
 # Onde o simulador guarda o total de cada hidrômetro (um hidrômetro real nunca volta a zero;
 # sem isso, ao reiniciar o simulador o backend veria o total "diminuir" e descartaria as leituras)
-ARQUIVO_TOTAIS = Path(__file__).resolve().parent / "totais_hidrometros.json"
+ARQUIVO_TOTAIS = RAIZ / "dados" / "totais_hidrometros.json"
 
 # Cenários de vazamento: faixa de vazão (L/min) sorteada na injeção
 CENARIOS = {

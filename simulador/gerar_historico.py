@@ -6,7 +6,7 @@ mesma faixa de horário do próprio prédio. Num protótipo recém-ligado não e
 esse passado, então geramos um, com o MESMO perfil de consumo do simulador
 (picos de entrada, intervalo e merenda) e variação natural de dia para dia.
 
-Grava na tabela consumo_historico do banco do backend (olhodagua.db).
+Grava na tabela consumo_historico do banco do backend (dados/olhodagua.db).
 Rodar uma vez (ou de novo para regerar), na raiz do projeto:
     .venv\\Scripts\\python.exe simulador\\gerar_historico.py
 """

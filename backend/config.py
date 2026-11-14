@@ -26,7 +26,7 @@ MQTT_USUARIO = os.getenv("MQTT_USUARIO") or None
 MQTT_SENHA = os.getenv("MQTT_SENHA") or None
 
 # --- Banco ---
-DB_CAMINHO = Path(os.getenv("DB_CAMINHO") or RAIZ / "olhodagua.db")
+DB_CAMINHO = Path(os.getenv("DB_CAMINHO") or RAIZ / "dados" / "olhodagua.db")
 
 # --- Painel ---
 PASTA_PAINEL = RAIZ / "painel"
@@ -66,9 +66,6 @@ SALTO_MAXIMO_LPM = 300
 TARIFA_RS_M3 = float(os.getenv("TARIFA_RS_M3") or 7.0032)
 # Hipótese: sem o LeakFinder, o vazamento só seria percebido na próxima conta (30 dias)
 DIAS_SEM_SISTEMA = float(os.getenv("DIAS_SEM_SISTEMA") or 30)
-
-# Litros por aluno por dia usados no cadastro (base: estudos medidos; ver CLAUDE.md)
-LITROS_POR_ALUNO = {"escola": 10, "cmei": 25}
 
 ARQUIVO_PREDIOS = RAIZ / "dados" / "predios.json"
 

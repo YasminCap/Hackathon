@@ -15,6 +15,7 @@ Rotas:
   GET  /api/predios/{id}/consumo_horario?horas= — litros por hora (horário de Londrina)
   GET  /api/predios/{id}/semanal           — consumo por semana + média semanal de acompanhamento
   POST /api/predios                        — incluir unidade (fica "aguardando câmera")
+  GET  /api/geocodificar?endereco=         — endereço em Londrina → ponto no mapa (OpenStreetMap)
   GET  /api/alertas?finalizados=           — alertas em andamento (padrão) ou finalizados (consertados)
   POST /api/alertas/{id}/operacao          — campo de operação: pendente | informado | consertado
   GET  /api/economia                       — água não desperdiçada e valor poupado na conta
@@ -41,6 +42,7 @@ from . import avisos, db
 from .cadastro import CadastroInvalido, incluir_unidade
 from .config import MODO_DEMO, PASTA_PAINEL, SEGUNDOS_ONLINE, carregar_predios
 from .economia import demonstrativo, economia_do_alerta
+from .geocodificacao import EnderecoNaoEncontrado, localizar
 from .deteccao import Detector
 from .mqtt_cliente import ClienteMQTT
 
@@ -190,22 +192,33 @@ def consumo_semanal(pid: str, semanas: int = Query(8, ge=1, le=52)):
     media = round(sum(s["litros"] for s in anteriores) / len(anteriores), 1) if anteriores else None
     atual = lista[-1] if lista else None
     variacao = None
+    # média por dia derivada do consumo REGISTRADO (não de um valor informado no cadastro)
+    media_diaria = round(media / 7) if media else None
     if atual and media and atual["completa"]:
         variacao = round((atual["litros"] - media) / media * 100, 1)
     return {"aviso": "DADOS SIMULADOS", "predio": pid, "semanas": lista,
-            "media_semanal": media, "semanas_na_media": len(anteriores),
+            "media_semanal": media, "media_diaria": media_diaria, "semanas_na_media": len(anteriores),
             "semana_atual": atual, "variacao_pct": variacao}
 
 
 class NovaUnidade(BaseModel):
     nome: str
     tipo: Literal["escola", "cmei"]
+    endereco: str
     regiao: str = ""
     lat: float
     lon: float
     horario_uso: str
     dias_uso: Literal["uteis", "todos"] = "uteis"
-    alunos: int
+
+
+@app.get("/api/geocodificar")
+def geocodificar(endereco: str):
+    """Procura o endereço em Londrina e devolve o ponto no mapa (para o cadastro)."""
+    try:
+        return localizar(endereco)
+    except EnderecoNaoEncontrado as erro:
+        raise HTTPException(404, str(erro)) from erro
 
 
 @app.post("/api/predios", status_code=201)

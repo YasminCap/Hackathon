@@ -29,7 +29,8 @@ olho-dagua/
 ├── backend/      main.py (FastAPI), mqtt_cliente.py, db.py, deteccao.py, avisos.py (alerta no terminal)
 ├── simulador/    simulador.py (+ endpoint ou painel simples para injetar cenários)
 ├── painel/       index.html, app.js
-├── dados/        predios.json (simulado)
+├── dados/        predios.json (simulado) + gerados em execução: olhodagua.db, totais_hidrometros.json
+├── testes/       teste_mqtt.py (ida e volta no broker)
 ├── documentos/   decisões e perguntas da banca, benefícios sociais, BMC, guia de dois computadores
 ├── .env / .env.example / .gitignore / requirements.txt / README.md
 ```
@@ -75,7 +76,8 @@ Base do consumo normal (decisão do time em 14/11 — "estudos medidos"):
 - Consumo médio só **por unidade** (no detalhe); não há total somado de todas as unidades.
 - **Histórico semanal** guardado (tabela `consumo_diario`, agregada por semana) e **média semanal de acompanhamento** (só semanas completas, anteriores à atual), com gráfico das últimas 8 semanas.
 - **Demonstrativo de economia** na Visão geral: água não desperdiçada e valor poupado na conta. Hipótese: sem o LeakFinder o vazamento duraria **30 dias** (até a próxima conta); tarifa **R$ 7,0032/m³** = tarifa média de água da Sanepar 2026 (IRT 2026 da Agepar, em vigor desde 17/05/2026; sem esgoto, estimativa conservadora). Configurável no `.env` (`DIAS_SEM_SISTEMA`, `TARIFA_RS_M3`). Sempre marcado como simulado.
-- **Cadastrar unidade:** escola ou CMEI pelo painel; grava em `dados/predios.json` com `camera_instalada: false` e aparece como **aguardando câmera** (sem leituras; o simulador a ignora até a câmera ser instalada).
+- **Cadastrar unidade:** escola ou CMEI pelo painel, com **endereço** (o botão "Localizar no mapa" busca o ponto no Nominatim/OpenStreetMap, limitado a Londrina; dá para ajustar clicando no mapa). **Não se informa número de alunos nem consumo.** Grava em `dados/predios.json` com `camera_instalada: false` e aparece como **aguardando câmera** (sem leituras; o simulador a ignora até a câmera ser instalada).
+- **A média de cada unidade é MEDIDA pelo consumo registrado** (média semanal das semanas completas e média por dia = semanal ÷ 7). Os campos `alunos`, `litros_por_aluno` e `media_diaria_litros` das unidades de exemplo são só **parâmetros do simulador** para gerar consumo realista (decisão do time em 14/11).
 
 ## Ordem de construção
 1. Estrutura, venv, requirements, `.env.example`, teste MQTT, primeiro commit.

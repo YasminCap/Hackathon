@@ -42,7 +42,6 @@ const TIPOS = {
   cultura:        { icone: "🎭", nome: "Cultura",                     curto: "Cultura" },
   assistencia:    { icone: "🤝", nome: "Assistência social",          curto: "Assistência" },
 };
-const LITROS_POR_ALUNO = { escola: 10, cmei: 25 };
 const tipo = p => TIPOS[p.tipo] || { icone: "🏢", nome: p.tipo, curto: p.tipo };
 
 let selecionado = null;
@@ -379,8 +378,11 @@ async function atualizarGraficos() {
   graficoSemanal.data.datasets[1].data = s.map(() => semanal.media_semanal);
   graficoSemanal.update();
 
+  // médias MEDIDAS pelo consumo registrado (semanas completas), não informadas no cadastro
   document.getElementById("info-semanal").textContent =
-    semanal.media_semanal != null ? `${fmt(semanal.media_semanal, 0)} L` : "—";
+    semanal.media_semanal != null ? `${fmt(semanal.media_semanal, 0)} L` : "aguardando registros";
+  document.getElementById("info-media").textContent =
+    semanal.media_diaria != null ? `${fmt(semanal.media_diaria, 0)} L` : "aguardando registros";
   const v = semanal.variacao_pct, el = document.getElementById("semanal-variacao");
   if (v == null) {
     el.textContent = semanal.semana_atual ? "· semana atual ainda em andamento" : "";
@@ -398,16 +400,17 @@ function atualizarDetalhe() {
   const sit = situacao(p);
   document.getElementById("titulo-predio").textContent = `${tipo(p).icone} ${p.nome}`;
   document.getElementById("sub-predio").textContent = `${tipo(p).nome} · região ${p.regiao || "—"}` +
+    (p.endereco ? ` · ${p.endereco}` : "") +
     (p.ultima_leitura ? ` · última foto do hidrômetro às ${p.ultima_leitura.slice(11, 16)}` : "") +
     (p.camera_instalada === false ? " · câmera ainda não instalada" : "");
   document.getElementById("status-predio").innerHTML = selo(sit);
   document.getElementById("info-vazao").textContent = p.vazao_lpm != null ? `${fmt(p.vazao_lpm, 1)} L/min` : "—";
   document.getElementById("info-horario").textContent =
     `${p.horario_uso.replace("-", " às ")} · ${p.dias_uso === "todos" ? "todos os dias" : "seg a sex"}`;
-  // média = alunos × litros por aluno (base: estudos que mediram escolas públicas; ver CLAUDE.md)
-  document.getElementById("info-media").textContent = !p.ativo ? "—"
-    : p.alunos ? `${fmt(p.media_diaria_litros, 0)} L · ${p.alunos} ${p.tipo === "cmei" ? "crianças" : "alunos"} × ${p.litros_por_aluno} L`
-    : `${fmt(p.media_diaria_litros, 0)} L`;
+  if (p.camera_instalada === false || !p.ativo) {   // sem leituras ainda: nada a medir
+    document.getElementById("info-media").textContent = "aguardando registros";
+    document.getElementById("info-semanal").textContent = "aguardando registros";
+  }
 }
 
 function selecionar(id) {
@@ -438,32 +441,47 @@ function iniciarMapaCadastro() {
   mapaCadastro = L.map("mapa-cadastro").setView(LONDRINA, 12);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" })
     .addTo(mapaCadastro);
-  mapaCadastro.on("click", e => {
-    localCadastro = e.latlng;
-    if (!marcadorCadastro) marcadorCadastro = L.marker(e.latlng).addTo(mapaCadastro);
-    marcadorCadastro.setLatLng(e.latlng);
-    document.getElementById("cad-local").textContent =
-      `Local marcado: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
-  });
+  mapaCadastro.on("click", e =>
+    marcarLocal(e.latlng, `Local marcado no mapa: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`));
   setTimeout(() => mapaCadastro.invalidateSize(), 50);
 }
 
 const form = document.getElementById("form-cadastro");
 
-function atualizarPreviaMedia() {
-  const t = form.tipo.value, alunos = Number(form.alunos.value) || 0, l = LITROS_POR_ALUNO[t];
-  document.getElementById("cad-media").innerHTML =
-    `Média diária calculada: <b>${fmt(alunos * l, 0)} L</b> (${alunos} ${t === "cmei" ? "crianças" : "alunos"} × ${l} L)`;
+function marcarLocal(latlng, texto) {
+  localCadastro = latlng;
+  if (!marcadorCadastro) marcadorCadastro = L.marker(latlng).addTo(mapaCadastro);
+  marcadorCadastro.setLatLng(latlng);
+  document.getElementById("cad-local").textContent = texto;
 }
-form.addEventListener("input", atualizarPreviaMedia);
-atualizarPreviaMedia();
+
+// Endereço → ponto no mapa (busca no OpenStreetMap, feita pelo backend)
+document.getElementById("btn-localizar").addEventListener("click", async () => {
+  const erro = document.getElementById("cad-erro");
+  const botao = document.getElementById("btn-localizar");
+  erro.textContent = "";
+  if (form.endereco.value.trim().length < 5) { erro.textContent = "Digite o endereço (rua e número)."; return; }
+  botao.disabled = true; botao.textContent = "Procurando…";
+  try {
+    const r = await buscar(`/api/geocodificar?endereco=${encodeURIComponent(form.endereco.value.trim())}`);
+    iniciarMapaCadastro();
+    const latlng = L.latLng(r.lat, r.lon);
+    mapaCadastro.setView(latlng, 16);
+    marcarLocal(latlng, `Encontrado: ${r.endereco_encontrado} — se não for o ponto exato, clique no mapa para ajustar.`);
+  } catch (e) {
+    erro.textContent = e.message;
+  } finally {
+    botao.disabled = false; botao.textContent = "📍 Localizar no mapa";
+  }
+});
 
 form.addEventListener("submit", async e => {
   e.preventDefault();
   const erro = document.getElementById("cad-erro");
   erro.textContent = "";
   if (!form.nome.value.trim()) { erro.textContent = "Informe o nome da unidade."; return; }
-  if (!localCadastro) { erro.textContent = "Clique no mapa para marcar o local da unidade."; return; }
+  if (form.endereco.value.trim().length < 5) { erro.textContent = "Informe o endereço da unidade."; return; }
+  if (!localCadastro) { erro.textContent = "Clique em “Localizar no mapa” (ou no próprio mapa) para marcar o local."; return; }
   if (!form.abre.value || !form.fecha.value || form.abre.value >= form.fecha.value) {
     erro.textContent = "O horário de abertura precisa ser antes do de fechamento."; return;
   }
@@ -473,13 +491,13 @@ form.addEventListener("submit", async e => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         nome: form.nome.value.trim(), tipo: form.tipo.value, regiao: form.regiao.value,
+        endereco: form.endereco.value.trim(),
         lat: localCadastro.lat, lon: localCadastro.lng,
         horario_uso: `${form.abre.value}-${form.fecha.value}`, dias_uso: form.dias_uso.value,
-        alunos: Number(form.alunos.value),
       }),
     });
     avisar(`${unidade.nome} cadastrada — aguardando a instalação da câmera.`);
-    form.reset(); atualizarPreviaMedia();
+    form.reset();
     localCadastro = null;
     if (marcadorCadastro) { marcadorCadastro.remove(); marcadorCadastro = null; }
     document.getElementById("cad-local").textContent = "Nenhum local marcado.";
@@ -493,9 +511,11 @@ form.addEventListener("submit", async e => {
 // ------------------------------------------------------------- ciclo principal
 async function ciclo() {
   try {
-    const [resumo, dados, alertas, economia] = await Promise.all([
-      buscar("/api/resumo"), buscar("/api/predios"), buscar("/api/alertas?limite=30"), buscar("/api/economia"),
+    const [resumo, dados, alertas] = await Promise.all([
+      buscar("/api/resumo"), buscar("/api/predios"), buscar("/api/alertas?limite=30"),
     ]);
+    // o demonstrativo é buscado à parte: se ele falhar, o resto do painel continua atualizando
+    buscar("/api/economia").then(atualizarEconomia).catch(console.error);
     ultimosPredios = dados.predios;
 
     // cabeçalho
@@ -521,7 +541,6 @@ async function ciclo() {
     document.getElementById("c-consertados").textContent =
       (aguardando ? "manutenção ainda não informada" : "nada pendente") + ` · ${resumo.consertados} consertado(s)`;
 
-    atualizarEconomia(economia);
 
     if (!selecionado) {
       const primeiro = ultimosPredios.find(p => p.ativo && p.camera_instalada !== false);
