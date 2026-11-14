@@ -1,5 +1,5 @@
 /*
- * app.js — lógica do painel do Olho d'Água.
+ * app.js — lógica do painel do LeakFinder Londrina.
  *
  * A cada 2 s busca na API:
  *   /api/resumo   → números do topo e relógio simulado
@@ -17,13 +17,19 @@ const LONDRINA = [-23.31, -51.16];
 const SITUACOES = {
   alerta:   { cor: "#dc2626", texto: "Alerta",                selo: "bg-red-100 text-red-700" },
   fora:     { cor: "#f59e0b", texto: "Em observação",         selo: "bg-amber-100 text-amber-800" },
-  fechado:  { cor: "#3730a3", texto: "Água cortada",          selo: "bg-indigo-100 text-indigo-800" },
   uso:      { cor: "#0ea5e9", texto: "Em uso",                selo: "bg-sky-100 text-sky-800" },
   parado:   { cor: "#94a3b8", texto: "Sem consumo",           selo: "bg-slate-100 text-slate-600" },
   semsinal: { cor: "#cbd5e1", texto: "Sem sinal",             selo: "bg-slate-100 text-slate-500" },
   inativo:  { cor: "#e2e8f0", texto: "Desativada",            selo: "bg-slate-100 text-slate-400" },
 };
-const LEGENDA = ["alerta", "fora", "fechado", "uso", "parado", "inativo"];
+const LEGENDA = ["alerta", "fora", "uso", "parado", "inativo"];
+
+// Campo de operação de cada alerta (preenchido pelo gestor)
+const OPERACOES = {
+  pendente:   { texto: "Pendente",                  classe: "bg-amber-100 text-amber-800" },
+  informado:  { texto: "Informado à manutenção",    classe: "bg-sky-100 text-sky-800" },
+  consertado: { texto: "Consertado",                classe: "bg-emerald-100 text-emerald-800" },
+};
 
 // Tipos de prédio do cadastro (dados/predios.json)
 const TIPOS = {
@@ -79,7 +85,6 @@ function situacao(p) {
   if (!p.ativo) return "inativo";
   if (!p.online) return "semsinal";
   if (p.alerta) return "alerta";
-  if (p.registro === "fechado") return "fechado";
   if (p.vazao_lpm > 0 && !emHorario(p)) return "fora";
   return p.vazao_lpm > 0 ? "uso" : "parado";
 }
@@ -166,8 +171,17 @@ function atualizarLista(predios) {
 // -------------------------------------------------------------------- alertas
 let assinaturaAlertas = null;  // só redesenha quando algo muda
 
-function atualizarAlertas(alertas, registros) {
-  const assinatura = alertas.map(a => a.id + a.status + (registros[a.dispositivo] || "")).join("|");
+/** Caixa de seleção do campo de operação de um alerta. */
+function campoOperacao(a) {
+  const opcoes = Object.entries(OPERACOES).map(([valor, o]) =>
+    `<option value="${valor}" ${a.operacao === valor ? "selected" : ""}>${o.texto}</option>`).join("");
+  return `<label class="flex items-center gap-2 text-xs text-slate-600">Operação:
+    <select data-operacao="${a.id}" class="text-xs font-medium rounded-lg border-0 px-2 py-1 ${OPERACOES[a.operacao]?.classe || ""}">${opcoes}</select>
+  </label>`;
+}
+
+function atualizarAlertas(alertas) {
+  const assinatura = alertas.map(a => a.id + a.status + a.operacao).join("|");
   if (assinatura === assinaturaAlertas) return;
   assinaturaAlertas = assinatura;
   const ul = document.getElementById("alertas");
@@ -180,17 +194,13 @@ function atualizarAlertas(alertas, registros) {
   ul.innerHTML = alertas.map(a => {
     const ativo = a.status === "ativo";
     const titulo = a.tipo === "vazamento" ? "Vazamento provável" : "Consumo excessivo";
-    const fechado = registros[a.dispositivo] === "fechado";
-    const botao = ativo && !fechado
-      ? `<button data-fechar="${esc(a.dispositivo)}" class="bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg">🔒 Fechar registro</button>`
-      : "";
     if (ativo) {
       return `<li data-predio="${esc(a.dispositivo)}" class="rounded-xl border border-red-200 bg-red-50 p-3 cursor-pointer">
         <div class="flex items-center gap-2 text-sm font-semibold text-red-700">${a.tipo === "vazamento" ? "🚨" : "⚠️"} ${titulo}</div>
         <div class="text-sm font-medium text-slate-900 mt-1">${esc(a.nome)}</div>
         <div class="text-xs text-slate-600 mt-0.5">Provável causa: ${esc(a.provavel_causa)}</div>
         <div class="text-xs text-slate-600">${fmt(a.vazao_estimada, 1)} L/min · desde ${hora(a.inicio_sim)}</div>
-        <div class="mt-2 flex items-center gap-2">${botao}${fechado ? `<span class="text-xs text-indigo-700">🔒 registro fechado — aguardando o fluxo zerar</span>` : ""}</div>
+        <div class="mt-2">${campoOperacao(a)}</div>
       </li>`;
     }
     return `<li data-predio="${esc(a.dispositivo)}" class="rounded-xl border border-slate-200 p-3 cursor-pointer">
@@ -198,16 +208,32 @@ function atualizarAlertas(alertas, registros) {
       <div class="text-sm text-slate-800 mt-0.5">${esc(a.nome)}</div>
       <div class="text-xs text-slate-500">${titulo.toLowerCase()} · ${esc(a.provavel_causa)}</div>
       <div class="text-xs text-slate-500">${hora(a.resolvido_sim)} · perda estimada ≈ ${fmt(a.litros_perdidos, 0)} L</div>
+      <div class="mt-2">${campoOperacao(a)}</div>
     </li>`;
   }).join("");
 }
 
-// clique num alerta: o botão fecha o registro; o resto do cartão abre a unidade
+// clique num alerta abre a unidade (menos no campo de operação)
 document.getElementById("alertas").addEventListener("click", e => {
-  const botao = e.target.closest("[data-fechar]");
-  if (botao) { comando(botao.dataset.fechar, "fechar_registro"); return; }
+  if (e.target.closest("[data-operacao]") || e.target.closest("label")) return;
   const li = e.target.closest("[data-predio]");
   if (li) selecionar(li.dataset.predio);
+});
+
+// mudar o campo de operação salva na hora
+document.getElementById("alertas").addEventListener("change", async e => {
+  const sel = e.target.closest("[data-operacao]");
+  if (!sel) return;
+  try {
+    await buscar(`/api/alertas/${sel.dataset.operacao}/operacao`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operacao: sel.value }),
+    });
+    await ciclo();
+  } catch (erro) {
+    alert("Não foi possível salvar a operação:\n" + erro.message);
+  }
 });
 
 // ------------------------------------------------------------------- gráficos
@@ -268,16 +294,6 @@ function atualizarDetalhe() {
   document.getElementById("info-horario").textContent =
     `${p.horario_uso.replace("-", " às ")} · ${p.dias_uso === "todos" ? "todos os dias" : "seg a sex"}`;
   document.getElementById("info-media").textContent = p.ativo ? `${fmt(p.media_diaria_litros, 0)} L` : "—";
-
-  const acoes = document.getElementById("acoes-predio");
-  const desejado = !p.ativo ? "" : p.registro === "fechado" ? "abrir" : "fechar";
-  if (acoes.dataset.estado === desejado) return;  // evita recriar o botão a cada 2 s
-  acoes.dataset.estado = desejado;
-  acoes.innerHTML = desejado === "abrir"
-    ? `<button onclick="comando(selecionado, 'abrir_registro')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg">🔓 Reabrir registro</button>`
-    : desejado === "fechar"
-      ? `<button onclick="comando(selecionado, 'fechar_registro')" class="bg-white border border-red-300 text-red-700 hover:bg-red-50 text-sm font-medium px-4 py-2 rounded-lg">🔒 Fechar registro</button>`
-      : "";
 }
 
 // --------------------------------------------------------------------- ações
@@ -288,22 +304,6 @@ function selecionar(id) {
   atualizarGraficos().catch(console.error);
 }
 
-async function comando(predioId, acao) {
-  const p = ultimosPredios.find(x => x.id === predioId);
-  const verbo = acao === "fechar_registro" ? "FECHAR" : "REABRIR";
-  if (!p || !confirm(`${verbo} o registro de água de ${p.nome}?`)) return;
-  try {
-    await buscar(`/api/predios/${p.id}/comando`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ acao, autorizado_por: "painel" }),
-    });
-    await ciclo();
-  } catch (erro) {
-    alert("Não foi possível enviar o comando:\n" + erro.message);
-  }
-}
-
 // ------------------------------------------------------------- ciclo principal
 async function ciclo() {
   try {
@@ -311,22 +311,21 @@ async function ciclo() {
       buscar("/api/resumo"), buscar("/api/predios"), buscar("/api/alertas?limite=20"),
     ]);
     ultimosPredios = dados.predios;
-    const registros = Object.fromEntries(ultimosPredios.map(p => [p.id, p.registro]));
 
     // cabeçalho
     document.getElementById("relogio").textContent = resumo.relogio_simulado
       ? `🕒 ${hora(resumo.relogio_simulado)} (simulado)` : "🕒 aguardando leituras";
     const con = document.getElementById("conexao");
     con.textContent = resumo.mqtt_conectado ? "🟢 recebendo dados" : "🔴 sem conexão";
-    const tg = document.getElementById("telegram");
-    tg.textContent = resumo.telegram_ativo ? "📱 Telegram ligado" : "📱 Telegram desligado";
-    tg.className = "ml-auto text-xs px-2 py-1 rounded-full " +
-      (resumo.telegram_ativo ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500");
 
     // números
     document.getElementById("c-online").textContent = `${resumo.predios_online} de ${resumo.predios_ativos}`;
     document.getElementById("c-vazao").textContent = `${fmt(resumo.vazao_total_lpm, 0)} L/min`;
-    document.getElementById("c-fechados").textContent = resumo.registros_fechados;
+    const aguardando = resumo.aguardando_acao;
+    document.getElementById("c-aguardando").textContent = aguardando;
+    document.getElementById("c-aguardando").className = "text-2xl font-bold " + (aguardando ? "text-amber-600" : "text-slate-900");
+    document.getElementById("c-consertados").textContent =
+      (aguardando ? "manutenção ainda não informada" : "nada pendente") + ` · ${resumo.consertados} consertado(s)`;
     const n = resumo.alertas_ativos;
     document.getElementById("c-alertas").textContent = n;
     document.getElementById("c-alertas").className = "text-2xl font-bold " + (n ? "text-red-600" : "text-slate-900");
@@ -338,7 +337,7 @@ async function ciclo() {
       const primeiro = ultimosPredios.find(p => p.ativo);
       if (primeiro) selecionado = primeiro.id;
     }
-    atualizarAlertas(alertas.alertas, registros);
+    atualizarAlertas(alertas.alertas);
     atualizarMapa(ultimosPredios);
     atualizarLista(ultimosPredios);
     atualizarDetalhe();

@@ -1,4 +1,4 @@
-# Olho d'Água — Benefícios sociais
+# LeakFinder Londrina — Benefícios sociais
 
 > Material de apoio ao pitch do SmartCities Hackathon Londrina 2026.
 > O protótipo é focado em **escolas municipais e CMEIs**, mas a **visão é municipal**: depois,
@@ -9,7 +9,7 @@
 
 ## Em uma frase
 
-**O Olho d'Água transforma a conta de água do mês em informação de meia em meia hora: a
+**O LeakFinder Londrina transforma a conta de água do mês em informação de meia em meia hora: a
 prefeitura deixa de pagar por vazamentos que ninguém via, protege os serviços essenciais da
 falta d'água e ajuda a cidade a usar melhor um recurso que já está escasso.**
 
@@ -35,7 +35,7 @@ dela se perde no caminho. Cada litro desperdiçado faz falta para alguém.
 
 ---
 
-## 2. Onde a água se perde — e onde o Olho d'Água entra
+## 2. Onde a água se perde — e onde o LeakFinder Londrina entra
 
 ```
  Estação de       Rede pública (Sanepar)          Hidrômetro         Dentro do prédio
@@ -48,7 +48,7 @@ dela se perde no caminho. Cada litro desperdiçado faz falta para alguém.
                                                                       → O QUE O PROTÓTIPO FAZ HOJE
 ```
 
-- **Hoje (protótipo):** o Olho d'Água vigia a água **depois do hidrômetro**, dentro dos prédios
+- **Hoje (protótipo):** o LeakFinder Londrina vigia a água **depois do hidrômetro**, dentro dos prédios
   públicos. Essa água é paga pela prefeitura, com dinheiro de todos.
 - **Visão municipal:** a mesma tecnologia, barata e sem obra, pode ajudar a enxergar também as
   perdas **antes** de a água chegar às casas, em parceria com a Sanepar (seção 4).
@@ -63,7 +63,7 @@ seguinte. Com uma foto do hidrômetro a cada 30 minutos, ele é percebido em **c
 
 **Exemplo simulado (protótipo):** uma torneira esquecida aberta a 7 litros por minuto.
 
-| | Sem o sistema (descoberta na conta, ~30 dias) | Com o Olho d'Água (~1h30) |
+| | Sem o sistema (descoberta na conta, ~30 dias) | Com o LeakFinder Londrina (~1h30) |
 |---|---|---|
 | Água perdida | ~302 mil litros | ~630 litros |
 
@@ -84,7 +84,7 @@ Monitorar o consumo de meia em meia hora permite agir antes do problema virar no
   para quem não pode parar, como os CMEIs (e, na fase 2, as UBS).
 
 ### 3.4 Gestão pública baseada em dados, com transparência
-Hoje a prefeitura só sabe quanto cada prédio gastou **no mês**. Com o Olho d'Água ela sabe
+Hoje a prefeitura só sabe quanto cada prédio gastou **no mês**. Com o LeakFinder Londrina ela sabe
 **quando**, **onde** e **quanto** — e pode:
 - priorizar reformas e investimentos (torneiras econômicas, reaproveitamento de água da chuva)
   onde o consumo está acima do esperado para aquele tipo de prédio;
@@ -118,7 +118,7 @@ pela rede municipal — condição para o benefício social chegar a escala.
 
 > A Sanepar já investe em detecção de vazamentos na rede, com sensores de ruído e inteligência
 > artificial [5] [6]. A proposta é **somar** a esse esforço com dados de consumo, não substituí-lo.
-> A operação da rede é da Sanepar; o Olho d'Água é uma ferramenta de gestão para a prefeitura.
+> A operação da rede é da Sanepar; o LeakFinder Londrina é uma ferramenta de gestão para a prefeitura.
 
 ---
 
@@ -135,7 +135,7 @@ pela rede municipal — condição para o benefício social chegar a escala.
 
 - "O Brasil perde perto de 4 em cada 10 litros de água tratada antes de ela chegar às casas. Quem
   cuida da água pública precisa enxergar onde ela está indo."
-- "Hoje um vazamento numa escola só aparece na conta do mês seguinte. Com o Olho d'Água, em cerca
+- "Hoje um vazamento numa escola só aparece na conta do mês seguinte. Com o LeakFinder Londrina, em cerca
   de uma hora."
 - "Não trocamos medidor nem quebramos parede: uma câmera de baixo custo lê o hidrômetro que já existe."
 - "Começamos pelas escolas, mas a visão é municipal: todos os prédios públicos e, com a Sanepar,

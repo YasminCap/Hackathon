@@ -2,7 +2,6 @@
 mqtt_cliente.py — ponte entre o broker MQTT e o banco.
 
   • Assina  hidrometro/+/leitura, valida cada mensagem e grava no SQLite.
-  • Publica hidrometro/<id>/comando (fechar_registro / abrir_registro) e registra no banco.
 
 Validação importa: no broker público qualquer um pode publicar nesses tópicos.
 Só aceitamos prédios do cadastro e mensagens no contrato oficial.
@@ -41,7 +40,6 @@ def conferir_com_anterior(leitura: dict, anterior: dict | None) -> None:
             f"leitura suspeita: salto de {salto:.0f} L em {minutos:.0f} min — "
             "provável erro na leitura da foto")
 
-ACOES_VALIDAS = ("fechar_registro", "abrir_registro")
 
 
 class LeituraInvalida(ValueError):
@@ -149,22 +147,3 @@ class ClienteMQTT:
                 print(f"[MQTT] Leitura rejeitada ({msg.topic}): {erro}")
         except Exception as erro:  # erro de banco etc. não pode derrubar a thread do MQTT
             print(f"[MQTT] Erro ao gravar leitura de {msg.topic}: {erro!r}")
-
-    # ------------------------------------------------------------------ comandos
-    def enviar_comando(self, dispositivo: str, acao: str, autorizado_por: str) -> dict:
-        """Publica o comando no contrato oficial e registra no banco."""
-        if acao not in ACOES_VALIDAS:
-            raise ValueError(f"ação inválida: {acao}")
-        if not self.conectado:
-            raise ConnectionError("MQTT desconectado — comando não enviado")
-        comando = {
-            "acao": acao,
-            "autorizado_por": autorizado_por,
-            "timestamp": db.agora_utc(),
-        }
-        info = self.cliente.publish(f"hidrometro/{dispositivo}/comando", json.dumps(comando), qos=1)
-        if info.rc != mqtt.MQTT_ERR_SUCCESS:
-            raise ConnectionError(f"falha ao publicar comando (rc={info.rc})")
-        comando["id"] = db.registrar_comando(dispositivo, acao, autorizado_por, comando["timestamp"])
-        print(f"[CMD] {dispositivo}: {acao} (autorizado por {autorizado_por})")
-        return comando

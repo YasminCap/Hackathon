@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Olho d'Água — Painel</title>
+<title>LeakFinder Londrina — Painel</title>
 <!--
   Painel da prefeitura: resumo, mapa, alertas e detalhe de cada unidade.
   HTML + JS puro, Tailwind via CDN, Chart.js e Leaflet. Atualiza a cada 2 s (app.js).
@@ -30,7 +30,7 @@
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
       <div class="w-10 h-10 rounded-xl bg-sky-600 text-white grid place-items-center text-xl">💧</div>
       <div>
-        <h1 class="text-lg font-bold leading-tight text-slate-900">Olho d'Água</h1>
+        <h1 class="text-lg font-bold leading-tight text-slate-900">LeakFinder Londrina</h1>
         <p class="text-xs text-slate-500">Monitoramento de água das escolas municipais e CMEIs de Londrina</p>
       </div>
       <div class="ml-auto flex flex-wrap items-center gap-2 text-xs">
@@ -64,10 +64,10 @@
           <div id="c-alertas-dica" class="text-xs text-slate-400">&nbsp;</div></div>
       </div>
       <div class="cartao p-4 flex gap-3 items-start">
-        <div class="w-10 h-10 rounded-lg bg-indigo-50 grid place-items-center text-lg shrink-0">🔒</div>
-        <div><div class="text-xs text-slate-500">Registros fechados</div>
-          <div id="c-fechados" class="text-2xl font-bold text-slate-900">--</div>
-          <div class="text-xs text-slate-400">água cortada a distância</div></div>
+        <div class="w-10 h-10 rounded-lg bg-amber-50 grid place-items-center text-lg shrink-0">🛠️</div>
+        <div><div class="text-xs text-slate-500">Aguardando ação</div>
+          <div id="c-aguardando" class="text-2xl font-bold text-slate-900">--</div>
+          <div id="c-consertados" class="text-xs text-slate-400">ocorrências com operação pendente</div></div>
       </div>
     </section>
 
@@ -84,7 +84,6 @@
       <div class="cartao flex flex-col">
         <div class="px-4 py-3 flex items-center gap-2 border-b border-slate-100">
           <h2 class="font-semibold text-slate-900">Alertas</h2>
-          <span id="telegram" class="ml-auto text-xs px-2 py-1 rounded-full"></span>
         </div>
         <ul id="alertas" class="flex-1 overflow-y-auto max-h-[420px] p-3 space-y-2"></ul>
       </div>
@@ -107,7 +106,6 @@
             <p id="sub-predio" class="text-xs text-slate-500"></p>
           </div>
           <span id="status-predio"></span>
-          <div class="ml-auto" id="acoes-predio"></div>
         </div>
         <div class="grid grid-cols-3 gap-3 text-sm">
           <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Média da última foto</div><div id="info-vazao" class="font-semibold">--</div></div>
@@ -135,6 +133,6 @@
   </main>
 
 <!-- ?v=: mude o número quando alterar o app.js, para o navegador não usar a versão antiga -->
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

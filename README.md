@@ -1,7 +1,7 @@
-# Olho d'Água
+# LeakFinder Londrina
 
-Monitoramento em tempo real da água das **escolas municipais e CMEIs** de Londrina
-(protótipo; a visão é estender a todos os prédios municipais).
+Monitoramento da água das **escolas municipais e CMEIs** de Londrina, para achar vazamentos
+cedo (protótipo; a visão é estender a todos os prédios municipais).
 Projeto do SmartCities Hackathon Londrina 2026 — tema: Transformação Digital na Gestão Pública.
 
 > Protótipo de software: a leitura é **simulada**, no mesmo contrato MQTT que a ESP32-CAM real usaria
@@ -11,12 +11,12 @@ Projeto do SmartCities Hackathon Londrina 2026 — tema: Transformação Digital
 ## Como rodar (Windows)
 
 ```bash
-git clone https://github.com/YasminCap/Hackathon.git olho-dagua
-cd olho-dagua
+git clone https://github.com/YasminCap/Hackathon.git leakfinder
+cd leakfinder
 py -3.12 -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-copy .env.example .env   # e preencha os valores
+copy .env.example .env   # e preencha os valores (opcional)
 python teste_mqtt.py     # teste de ida e volta no broker público
 ```
 
@@ -31,11 +31,10 @@ python teste_mqtt.py     # teste de ida e volta no broker público
 ```
 
 - Faz o papel da ESP32-CAM: publica `hidrometro/<id>/leitura` **a cada 30 min simulados** (30 s reais)
-  para os prédios ativos de `dados/predios.json`, com o total do hidrômetro e o consumo desde a foto anterior.
+  para as unidades ativas de `dados/predios.json`, com o total do hidrômetro e o consumo desde a foto anterior.
 - Guarda o total de cada hidrômetro em `simulador/totais_hidrometros.json` (um hidrômetro real não volta a zero).
-- Obedece `hidrometro/<id>/comando` (`fechar_registro` / `abrir_registro`).
-- Painel de controle em http://127.0.0.1:8001: injetar vazamento (descarga, boia, torneira,
-  cano rompido), consertar, abrir/fechar registro, ir para a madrugada, adiantar o relógio.
+- Controle da demonstração em http://127.0.0.1:8001: escolher a unidade e **iniciar vazamento**
+  (o tipo é sorteado — quem descobre a provável causa é o LeakFinder), consertar, ir para a madrugada.
 - Sem `.env`, usa o broker público `broker.hivemq.com:1883`.
 
 ## Backend (API + gravação no SQLite)
@@ -46,20 +45,21 @@ Em outro terminal, com o simulador rodando:
 .venv\Scripts\python.exe -m backend.main
 ```
 
-- Recebe `hidrometro/+/leitura`, valida (só prédios do cadastro, contrato oficial) e grava em `olhodagua.db`.
+- Recebe `hidrometro/+/leitura`, valida (só unidades do cadastro, contrato oficial) e grava em `olhodagua.db`.
 - API em http://127.0.0.1:8000 — documentação interativa em http://127.0.0.1:8000/docs.
-- `POST /api/predios/<id>/comando` com `{"acao": "fechar_registro"}` fecha o registro pelo MQTT.
+- `POST /api/alertas/<id>/operacao` com `{"operacao": "informado"}` preenche o campo de operação.
 
-## Detecção e alertas no Telegram
+## Detecção de vazamentos
 
 O backend avalia cada nova leitura (foto) assim que ela chega, no relógio simulado:
 
 - **Vazamento** — fora do horário de uso, consumo em 3 fotos seguidas (2 com `MODO_DEMO=1`).
 - **Consumo excessivo** — no horário de uso, litros da última hora > 2× a média da mesma faixa
-  de horário do próprio prédio (2 fotos).
+  de horário da própria unidade (2 fotos).
 - **Leitura suspeita** — total que diminui ou dá um salto impossível (foto lida errado) é descartado.
-- Causa apresentada como **provável** (pela vazão), 1 alerta ativo por prédio, aviso de
-  **resolvido** quando o fluxo zera e cooldown antes de um novo alerta.
+- Causa apresentada como **provável** (pela vazão), 1 alerta ativo por unidade, aviso de
+  **resolvido** quando o consumo zera e cooldown antes de um novo alerta.
+- Os alertas aparecem no painel do gestor e no terminal do backend.
 
 A média por faixa de horário vem de um histórico **simulado** de 4 semanas. Gere uma vez:
 
@@ -67,30 +67,22 @@ A média por faixa de horário vem de um histórico **simulado** de 4 semanas. G
 .venv\Scripts\python.exe simulador\gerar_historico.py
 ```
 
-### Configurar o bot do Telegram
-
-1. No Telegram, fale com **@BotFather** → `/newbot` → copie o token.
-2. Copie `.env.example` para `.env` e cole o token em `TELEGRAM_TOKEN=`.
-3. Suba o backend e mande `/start` para o seu bot: ele responde com o **id do chat**.
-   (Para um grupo da manutenção, adicione o bot ao grupo e mande `/start` lá.)
-4. Coloque esse número em `TELEGRAM_CHAT_ID=` e reinicie o backend.
-
-Os alertas chegam com os botões **🔒 Fechar registro** / **🔓 Reabrir registro**, que publicam
-o comando MQTT com `autorizado_por: telegram:<user_id>`. Só o chat configurado pode usar os
-botões. `/status` lista os alertas ativos. Sem token, os alertas aparecem no painel e no terminal.
-
-## Painel da prefeitura
+## Painel do gestor
 
 Com simulador e backend rodando, abra **http://127.0.0.1:8000**:
-mapa dos prédios (cor = situação, tamanho = vazão), lista lateral, gráfico de vazão
-das últimas 6 h simuladas, consumo por hora e botão "Fechar/Reabrir registro".
-Atualiza sozinho a cada 2 s.
+mapa das unidades (cor = situação, tamanho = consumo), alertas, lista de unidades, gráfico do
+consumo médio de cada foto (últimas 24 h) e consumo por hora. Atualiza sozinho a cada 2 s.
+
+**Campo de operação:** cada alerta tem a caixa *Operação* para o gestor registrar o andamento —
+**Pendente** → **Informado à manutenção** → **Consertado**. O cartão *Aguardando ação* mostra
+quantas ocorrências ainda não foram informadas.
 
 ## Estrutura
 
 ```
-backend/    API FastAPI, cliente MQTT, banco, detecção, bot Telegram
-simulador/  simulador dos hidrômetros + injeção de cenários
-painel/     painel web (HTML + JS)
-dados/      predios.json (simulado)
+backend/         API FastAPI, cliente MQTT, banco, detecção, avisos no terminal
+simulador/       simulador dos hidrômetros + controle da demonstração
+painel/          painel do gestor (HTML + JS)
+dados/           predios.json (simulado)
+materiais-pitch/ material de apoio para a apresentação
 ```

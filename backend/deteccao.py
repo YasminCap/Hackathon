@@ -16,7 +16,7 @@ Regras (ver CLAUDE.md):
 
 Ciclo de vida do alerta:
   • no máximo 1 alerta ativo por prédio;
-  • resolvido quando o fluxo zera (ex.: registro fechado) ou, no consumo excessivo,
+  • resolvido quando o consumo zera (ex.: vazamento consertado) ou, no consumo excessivo,
     quando o consumo cai abaixo de FATOR_EXCESSO_RESOLVIDO × média;
   • depois de resolvido, COOLDOWN_MIN sem novo alerta no mesmo prédio.
 
@@ -91,33 +91,31 @@ class Detector:
     def avaliar(self) -> list[dict]:
         """Avalia os prédios com leitura nova. Devolve eventos 'novo' e 'resolvido'."""
         eventos = []
-        registros = db.estado_registros()
         for pid, predio in self.predios.items():
             leituras = db.leituras_mais_recentes(pid, LEITURAS_ANALISADAS)
             if not leituras or leituras[0]["id"] == self._ultimo_id.get(pid):
                 continue
             self._ultimo_id[pid] = leituras[0]["id"]
-            evento = self._avaliar_predio(predio, leituras, registros.get(pid, "aberto"))
+            evento = self._avaliar_predio(predio, leituras)
             if evento:
                 eventos.append(evento)
         return eventos
 
     # -------------------------------------------------------------- por prédio
-    def _avaliar_predio(self, predio: dict, leituras: list[dict], registro: str) -> dict | None:
+    def _avaliar_predio(self, predio: dict, leituras: list[dict]) -> dict | None:
         pid = predio["id"]
         ultima = leituras[0]
         t = _dt(ultima["ts_local"])
 
         ativo = db.alerta_ativo(pid)
         if ativo:
-            motivo = self._motivo_resolucao(ativo, predio, leituras, t, registro)
+            motivo = self._motivo_resolucao(ativo, predio, leituras, t)
             if not motivo:
                 return None
             duracao = max(0.0, (t - _dt(ativo["inicio_sim"])).total_seconds() / 60)
             perdidos = round(ativo["vazao_estimada"] * duracao, 1)
             db.resolver_alerta(ativo["id"], ultima["ts_local"], motivo, perdidos)
-            return {"evento": "resolvido", "predio": predio, "registro": registro,
-                    "alerta": db.obter_alerta(ativo["id"])}
+            return {"evento": "resolvido", "predio": predio, "alerta": db.obter_alerta(ativo["id"])}
 
         anterior = db.ultimo_alerta_resolvido(pid)
         if anterior and t < _dt(anterior["resolvido_sim"]) + timedelta(minutes=COOLDOWN_MIN):
@@ -129,12 +127,11 @@ class Detector:
         achado["dispositivo"] = pid
         achado["detectado_sim"] = ultima["ts_local"]
         alerta_id = db.criar_alerta(achado)
-        return {"evento": "novo", "predio": predio, "registro": registro,
-                "alerta": db.obter_alerta(alerta_id)}
+        return {"evento": "novo", "predio": predio, "alerta": db.obter_alerta(alerta_id)}
 
-    def _motivo_resolucao(self, alerta, predio, leituras, t, registro) -> str | None:
+    def _motivo_resolucao(self, alerta, predio, leituras, t) -> str | None:
         if leituras[0]["vazao_lpm"] <= 0:
-            return "registro fechado — fluxo zerou" if registro == "fechado" else "fluxo zerou"
+            return "consumo zerou"
         if alerta["tipo"] == "consumo_excessivo" and em_horario(predio, t):
             janela = self._janela(predio, leituras, t)
             if janela and janela[1] > 0 and janela[0] < FATOR_EXCESSO_RESOLVIDO * janela[1]:

@@ -35,10 +35,6 @@ PASTA_PAINEL = RAIZ / "painel"
 # Com a "câmera" fotografando a cada 30 min simulados (30 s reais no fator 60), 90 s = ~3 fotos.
 SEGUNDOS_ONLINE = int(os.getenv("SEGUNDOS_ONLINE") or 90)
 
-# --- Telegram ---
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN") or None
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID") or None
-
 # --- Detecção (tempos em minutos SIMULADOS) ---
 MODO_DEMO = (os.getenv("MODO_DEMO") or "0") == "1"
 

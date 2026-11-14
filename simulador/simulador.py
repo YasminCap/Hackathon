@@ -1,12 +1,11 @@
 """
-simulador.py — hidrômetros SIMULADOS das escolas municipais e CMEIs (Olho d'Água).
+simulador.py — hidrômetros SIMULADOS das escolas municipais e CMEIs (LeakFinder Londrina).
 Também traz perfis de outros prédios da prefeitura (secretarias, UBS, esporte, cultura,
 CRAS) para a fase 2; o cadastro do protótipo (dados/predios.json) usa só escolas e CMEIs.
 
 Faz o papel da ESP32-CAM que, em cada prédio, fotografa o mostrador do hidrômetro:
   • publica UMA leitura a cada 30 min simulados em hidrometro/<id>/leitura
     (mesmo contrato da câmera real: total lido no mostrador + litros e média desde a foto anterior)
-  • obedece comandos em  hidrometro/<id>/comando   (fechar_registro / abrir_registro)
 
 Recursos:
   • Consumo realista por tipo de prédio (picos de entrada, almoço, limpeza, banhos...);
@@ -75,7 +74,7 @@ ARQUIVO_TOTAIS = Path(__file__).resolve().parent / "totais_hidrometros.json"
 # Cenários de vazamento: faixa de vazão (L/min) sorteada na injeção
 CENARIOS = {
     "descarga": (0.5, 3.0),       # válvula de descarga escorrendo
-    "boia": (3.0, 6.0),           # boia da caixa d'água travada aberta
+    "boia": (3.0, 4.8),           # boia travada aberta (abaixo de 5 L/min: não se confunde com torneira)
     "cano_rompido": (40.0, 80.0), # salto para vazão alta
     "torneira": (5.0, 10.0),      # torneira esquecida aberta
 }
@@ -179,7 +178,6 @@ class Predio:
     vazao_lpm: float = 0.0           # vazão real neste instante (só o simulador sabe)
     litros_periodo: float = 0.0      # litros desde a última "foto"
     minutos_periodo: float = 0.0     # minutos simulados desde a última "foto"
-    registro_aberto: bool = True
     cenario: str | None = None
     cenario_vazao: float = 0.0
     escala: float = 0.0              # L/min por unidade de peso do perfil
@@ -283,7 +281,6 @@ class Simulador:
             cliente.tls_set()
         cliente.on_connect = self._ao_conectar
         cliente.on_disconnect = self._ao_desconectar
-        cliente.on_message = self._ao_receber_comando
         return cliente
 
     def conectar(self) -> None:
@@ -296,36 +293,10 @@ class Simulador:
         if reason_code.is_failure:
             print(f"[ERRO] Conexão MQTT recusada: {reason_code}")
             return
-        print("[OK] MQTT conectado — escutando hidrometro/+/comando")
-        client.subscribe("hidrometro/+/comando", qos=1)
+        print("[OK] MQTT conectado — publicando as fotos dos hidrômetros")
 
     def _ao_desconectar(self, client, userdata, flags, reason_code, properties):
         print(f"[!!] MQTT desconectado ({reason_code}); tentando reconectar...")
-
-    def _ao_receber_comando(self, client, userdata, msg):
-        """Comando vindo do backend/Telegram: fecha ou reabre o registro do prédio."""
-        partes = msg.topic.split("/")
-        predio_id = partes[1] if len(partes) == 3 else None
-        try:
-            comando = json.loads(msg.payload.decode("utf-8"))
-            acao = comando["acao"]
-        except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError):
-            print(f"[!!] Comando inválido em {msg.topic}: {msg.payload[:100]!r}")
-            return
-        with self.trava:
-            predio = self.predios.get(predio_id)
-            if predio is None:
-                print(f"[!!] Comando para prédio desconhecido: {predio_id}")
-                return
-            if acao == "fechar_registro":
-                predio.registro_aberto = False
-            elif acao == "abrir_registro":
-                predio.registro_aberto = True
-            else:
-                print(f"[!!] Ação desconhecida '{acao}' para {predio_id}")
-                return
-        quem = comando.get("autorizado_por", "?")
-        print(f"[CMD] {predio_id}: {acao} (autorizado por {quem})")
 
     # ------------------------------------------------------------------ relógio
     def pular_para_madrugada(self) -> None:
@@ -338,9 +309,7 @@ class Simulador:
 
     # ------------------------------------------------------------------- ciclo
     def _vazao_do_predio(self, p: Predio, instante: datetime) -> float:
-        """Uso normal (com ruído) + vazamento ativo; zero se o registro estiver fechado."""
-        if not p.registro_aberto:
-            return 0.0
+        """Uso normal (com ruído) + vazamento ativo."""
         esperada = p.vazao_esperada(instante)
         if esperada > 0:
             normal = esperada * random.uniform(0.6, 1.4)
@@ -434,7 +403,6 @@ class Simulador:
                         "tipo": p.tipo,
                         "vazao_lpm": p.vazao_lpm,
                         "total_litros": p.total_litros,
-                        "registro": "aberto" if p.registro_aberto else "fechado",
                         "cenario": p.cenario,
                         "cenario_vazao": round(p.cenario_vazao, 2),
                         "em_horario": p.em_horario(self.agora),
@@ -448,7 +416,7 @@ class Simulador:
 # API + painel de controle do simulador
 # ---------------------------------------------------------------------------
 def criar_app(sim: Simulador) -> FastAPI:
-    app = FastAPI(title="Olho d'Água — Simulador (dados simulados)")
+    app = FastAPI(title="LeakFinder Londrina — Simulador (dados simulados)")
 
     def _predio(pid: str) -> Predio:
         if pid not in sim.predios:
@@ -471,7 +439,11 @@ def criar_app(sim: Simulador) -> FastAPI:
 
     @app.post("/api/cenario/{pid}/{cenario}")
     def injetar(pid: str, cenario: str):
-        """Injeta um vazamento. cenario='nenhum' = manutenção consertou."""
+        """Injeta um vazamento. cenario='aleatorio' sorteia o tipo (é o que a tela usa:
+        a demonstração não diz qual é — quem descobre a provável causa é o sistema).
+        cenario='nenhum' = manutenção consertou."""
+        if cenario == "aleatorio":
+            cenario = random.choice(list(CENARIOS))
         with sim.trava:
             p = _predio(pid)
             if cenario == "nenhum":
@@ -480,19 +452,9 @@ def criar_app(sim: Simulador) -> FastAPI:
                 p.cenario = cenario
                 p.cenario_vazao = random.uniform(*CENARIOS[cenario])
             else:
-                raise HTTPException(400, f"Cenário inválido. Use: {', '.join(CENARIOS)} ou nenhum")
+                raise HTTPException(400, f"Cenário inválido. Use: aleatorio, {', '.join(CENARIOS)} ou nenhum")
         print(f"[CENÁRIO] {pid}: {cenario} ({p.cenario_vazao:.2f} L/min)")
         return {"ok": True, "predio": pid, "cenario": p.cenario, "vazao_lpm": round(p.cenario_vazao, 2)}
-
-    @app.post("/api/registro/{pid}/{acao}")
-    def registro(pid: str, acao: str):
-        """Atalho local para abrir/fechar o registro (o caminho oficial é o tópico MQTT)."""
-        if acao not in ("abrir", "fechar"):
-            raise HTTPException(400, "Use abrir ou fechar")
-        with sim.trava:
-            _predio(pid).registro_aberto = acao == "abrir"
-        print(f"[REGISTRO] {pid}: {acao} (pelo painel do simulador)")
-        return {"ok": True}
 
     @app.post("/api/madrugada")
     def madrugada():

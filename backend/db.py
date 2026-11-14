@@ -2,8 +2,9 @@
 db.py — persistência em SQLite.
 
 Tabelas:
-  leituras  — cada mensagem recebida em hidrometro/<id>/leitura
-  comandos  — cada comando enviado em hidrometro/<id>/comando (trilha de auditoria)
+  leituras           — cada leitura (foto do hidrômetro) recebida em hidrometro/<id>/leitura
+  consumo_historico  — histórico SIMULADO por faixa de 15 min (a "média normal" de cada unidade)
+  alertas            — vazamentos detectados + campo de operação (pendente/informado/consertado)
 
 Cada operação abre sua própria conexão: o cliente MQTT grava numa thread e a API lê
 em outras, e o SQLite em modo WAL lida bem com isso no volume do protótipo
@@ -32,15 +33,6 @@ CREATE TABLE IF NOT EXISTS leituras (
 );
 CREATE INDEX IF NOT EXISTS ix_leituras_disp_ts ON leituras (dispositivo, ts_local);
 
-CREATE TABLE IF NOT EXISTS comandos (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    dispositivo     TEXT NOT NULL,
-    acao            TEXT NOT NULL,   -- fechar_registro | abrir_registro
-    autorizado_por  TEXT NOT NULL,   -- ex.: telegram:<user_id>, painel
-    timestamp       TEXT NOT NULL    -- UTC
-);
-CREATE INDEX IF NOT EXISTS ix_comandos_disp ON comandos (dispositivo, id);
-
 -- Consumo em faixas de 15 min de semanas anteriores (SIMULADO, gerado por
 -- simulador/gerar_historico.py). É a "média da mesma faixa do próprio prédio" usada na
 -- regra de consumo excessivo. Faixas de 15 min (e não de 1 h) acompanham bem a abertura
@@ -68,7 +60,9 @@ CREATE TABLE IF NOT EXISTS alertas (
     resolvido_sim      TEXT,
     motivo_resolucao   TEXT,
     litros_perdidos    REAL,            -- estimativa: vazao_estimada × duração
-    telegram_msg_id    INTEGER
+    -- Campo de operação, preenchido pelo gestor no painel:
+    operacao           TEXT NOT NULL DEFAULT 'pendente',  -- pendente | informado | consertado
+    operacao_em        TEXT             -- quando a operação mudou pela última vez (UTC real)
 );
 CREATE INDEX IF NOT EXISTS ix_alertas_disp ON alertas (dispositivo, id);
 """
@@ -95,6 +89,12 @@ def inicializar() -> None:
     with conexao() as con:
         con.execute("PRAGMA journal_mode=WAL")
         con.executescript(ESQUEMA)
+        # Banco criado por uma versão antiga: acrescenta as colunas do campo de operação
+        colunas = {r["name"] for r in con.execute("PRAGMA table_info(alertas)")}
+        if "operacao" not in colunas:
+            con.execute("ALTER TABLE alertas ADD COLUMN operacao TEXT NOT NULL DEFAULT 'pendente'")
+        if "operacao_em" not in colunas:
+            con.execute("ALTER TABLE alertas ADD COLUMN operacao_em TEXT")
 
 
 # ------------------------------------------------------------------ leituras
@@ -179,33 +179,6 @@ def contar_leituras() -> int:
         return con.execute("SELECT COUNT(*) FROM leituras").fetchone()[0]
 
 
-# ------------------------------------------------------------------ comandos
-def registrar_comando(dispositivo: str, acao: str, autorizado_por: str, timestamp: str) -> int:
-    with conexao() as con:
-        cur = con.execute(
-            "INSERT INTO comandos (dispositivo, acao, autorizado_por, timestamp) VALUES (?, ?, ?, ?)",
-            (dispositivo, acao, autorizado_por, timestamp),
-        )
-        return cur.lastrowid
-
-
-def estado_registros() -> dict[str, str]:
-    """'aberto' ou 'fechado' para cada prédio, pelo último comando enviado."""
-    with conexao() as con:
-        linhas = con.execute(
-            """SELECT c.dispositivo, c.acao FROM comandos c
-               JOIN (SELECT dispositivo, MAX(id) AS id FROM comandos GROUP BY dispositivo) u
-                 ON u.id = c.id"""
-        ).fetchall()
-    return {r["dispositivo"]: ("fechado" if r["acao"] == "fechar_registro" else "aberto") for r in linhas}
-
-
-def comandos_recentes(limite: int = 20) -> list[dict]:
-    with conexao() as con:
-        linhas = con.execute("SELECT * FROM comandos ORDER BY id DESC LIMIT ?", (limite,)).fetchall()
-    return [dict(r) for r in linhas]
-
-
 # --------------------------------------------------------- histórico (simulado)
 def substituir_historico(linhas: list[tuple]) -> None:
     """Apaga e regrava o histórico. Cada linha: (dispositivo, data, minuto, dia_util, litros)."""
@@ -281,9 +254,17 @@ def resolver_alerta(alerta_id: int, resolvido_sim: str, motivo: str, litros_perd
         )
 
 
-def salvar_telegram_msg(alerta_id: int, msg_id: int) -> None:
+OPERACOES = ("pendente", "informado", "consertado")
+
+
+def definir_operacao(alerta_id: int, operacao: str) -> dict | None:
+    """Campo de operação do alerta: pendente → informado (manutenção avisada) → consertado."""
+    if operacao not in OPERACOES:
+        raise ValueError(f"operação inválida: {operacao}")
     with conexao() as con:
-        con.execute("UPDATE alertas SET telegram_msg_id = ? WHERE id = ?", (msg_id, alerta_id))
+        con.execute("UPDATE alertas SET operacao = ?, operacao_em = ? WHERE id = ?",
+                    (operacao, agora_utc(), alerta_id))
+    return obter_alerta(alerta_id)
 
 
 def obter_alerta(alerta_id: int) -> dict | None:

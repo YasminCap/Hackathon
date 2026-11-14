@@ -1,13 +1,13 @@
-# Guia: simulador num notebook, painel do gestor em outro
+# LeakFinder Londrina — guia: simulador num notebook, painel do gestor em outro
 
-Um integrante cuida do **simulador** (provoca os vazamentos) e outro usa o **painel do gestor**,
+Um integrante cuida do **simulador** (inicia os vazamentos) e outro usa o **painel do gestor**,
 cada um no seu notebook. Os dois **não precisam estar na mesma rede**: as mensagens passam por
 um "correio" na internet (o broker MQTT), como seria na vida real.
 
 ```
  Notebook 1 — SIMULADOR                  internet                 Notebook 2 — GESTOR
- provoca o vazamento  ──────►  correio MQTT (HiveMQ)  ──────►  vê o alerta no painel
- a água para          ◄──────                          ◄──────  clica "Fechar registro"
+ inicia o vazamento   ──────►  correio MQTT (HiveMQ)  ──────►  vê o alerta no painel
+                                                                 e registra a operação
 ```
 
 > Todos os dados são **simulados**.
@@ -35,15 +35,15 @@ Abra o **Prompt de Comando** (ou o terminal do VS Code) e rode, um de cada vez:
 cd C:\
 ```
 ```bash
-git clone https://github.com/YasminCap/Hackathon.git olho-dagua
+git clone https://github.com/YasminCap/Hackathon.git leakfinder
 ```
 
-Isso cria a pasta `C:\olho-dagua` com o projeto. (Se pedir login do GitHub, entre com a conta
+Isso cria a pasta `C:\leakfinder` com o projeto. (Se pedir login do GitHub, entre com a conta
 de quem foi convidado.) O `.env` com senhas **não** vem junto — de propósito.
 
 ### 3. Instalar as dependências
 
-No VS Code: **Arquivo → Abrir pasta** → escolha `C:\olho-dagua` → **Terminal → Novo terminal**.
+No VS Code: **Arquivo → Abrir pasta** → escolha `C:\leakfinder` → **Terminal → Novo terminal**.
 Rode, um de cada vez:
 
 ```bash
@@ -116,11 +116,11 @@ Confira: **"Unidades online: 9 de 9"** — isso prova que as leituras do noteboo
 
 | Passo | Quem | O que fazer | O que deve acontecer |
 |---|---|---|---|
-| 1 | Simulador | Clicar **▶ Simular vazamento** | A Escola Municipal Exemplo 1 fica "Torneira aberta" |
-| 2 | Gestor | Esperar **1 a 2 minutos** (a “câmera” fotografa a cada 30 s reais) | Aparece **🚨 Vazamento provável** e o ponto vermelho no mapa |
-| 3 | Gestor | Clicar **🔒 Fechar registro** no alerta | Em até ~1 minuto (próximas fotos) o alerta vira **✅ Resolvido** |
-| 4 | Simulador | Olhar a lista "Como estão os prédios agora" | A Escola 1 aparece como **Água cortada** |
-| 5 | Simulador | Clicar **🔧 Consertar tudo e recomeçar** | Tudo volta ao normal para a próxima rodada |
+| 1 | Simulador | Escolher uma unidade e clicar **▶ Iniciar vazamento** | A unidade aparece como **Vazando** (o tipo é sorteado) |
+| 2 | Gestor | Esperar **1 a 2 minutos** (a “câmera” fotografa a cada 30 s reais) | Aparece **🚨 Vazamento provável**, com a provável causa, e o ponto vermelho no mapa |
+| 3 | Gestor | No alerta, mudar **Operação** para **Informado à manutenção** | O cartão *Aguardando ação* diminui |
+| 4 | Simulador | Clicar **🔧 consertar** na unidade (a manutenção consertou) | Em até ~1 minuto (próximas fotos) o alerta vira **✅ Resolvido** |
+| 5 | Gestor | Mudar **Operação** para **Consertado** | A ocorrência fica registrada como consertada |
 
 ---
 
