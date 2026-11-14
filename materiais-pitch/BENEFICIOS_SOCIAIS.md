@@ -91,10 +91,12 @@ Hoje a prefeitura só sabe quanto cada prédio gastou **no mês**. Com o LeakFin
 - programar limpezas e regas fora dos horários de maior demanda da cidade;
 - prestar contas à população com números, não com estimativas.
 
-### 3.5 Sem obra e sem trocar medidor
+### 3.5 Sem obra, sem trocar medidor e sem tomada
 A câmera (ESP32-CAM) **fotografa o hidrômetro que já existe**. Não corta cano, não troca
 medidor, não interrompe o abastecimento. Isso torna a solução **barata e rápida de espalhar**
 pela rede municipal — condição para o benefício social chegar a escala.
+
+E ela **não depende da rede elétrica**: funciona com **bateria e painel solar**. Não é preciso levar tomada até o hidrômetro, que costuma ficar no muro ou na calçada. Se a bateria acabar, nenhum litro se perde: o hidrômetro continua marcando e a próxima foto recupera o total.
 
 ---
 
@@ -137,7 +139,7 @@ pela rede municipal — condição para o benefício social chegar a escala.
   cuida da água pública precisa enxergar onde ela está indo."
 - "Hoje um vazamento numa escola só aparece na conta do mês seguinte. Com o LeakFinder Londrina, em cerca
   de uma hora."
-- "Não trocamos medidor nem quebramos parede: uma câmera de baixo custo lê o hidrômetro que já existe."
+- "Não trocamos medidor, não quebramos parede e não precisamos de tomada: uma câmera de baixo custo, com bateria e painel solar, lê o hidrômetro que já existe."
 - "Começamos pelas escolas, mas a visão é municipal: todos os prédios públicos e, com a Sanepar,
   a rede da cidade."
 - "Em abril de 2021, Londrina viveu o abril mais seco da sua história. Água desperdiçada é água

@@ -11,7 +11,7 @@ Detecta vazamentos, mostra os alertas no painel do gestor com um campo de opera�
 
 ## Decisões fixas (não mudar sem o time pedir)
 - Protótipo **só de software**. A leitura é simulada, no mesmo contrato MQTT que o dispositivo real usaria. Não sugerir outro hardware.
-- **Hardware da versão real (decisão do time em 14/11): ESP32-CAM fotografando o mostrador do hidrômetro que já existe no prédio, a cada 30 min.** A foto vira número (reconhecimento dos dígitos); não mexe no encanamento. Fechar a água a distância exigiria também uma válvula elétrica.
+- **Hardware da versão real (decisão do time em 14/11): ESP32-CAM fotografando o mostrador do hidrômetro que já existe no prédio, a cada 30 min.** A foto vira número (reconhecimento dos dígitos); não mexe no encanamento. **A câmera é alimentada por bateria e painel solar — não depende da rede elétrica nem de tomada perto do hidrômetro** (decisão do time em 14/11); fotos espaçadas (a cada 30 min) poupam a bateria. Se a bateria acabar, o painel mostra a unidade como "sem sinal" e a próxima foto recupera o total. Fechar a água a distância exigiria também uma válvula elétrica.
 - Cliente é a prefeitura. Nada de venda B2C ou kit residencial.
 - **Sem Telegram e sem "fechar registro"** (decisão do time em 14/11): o alerta fica no painel do gestor, que registra a operação (pendente / informado / consertado). Não há comando para cortar a água.
 - Todo dado, tarifa ou fatura de exemplo deve ser marcado como **simulado**.

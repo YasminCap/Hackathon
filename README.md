@@ -5,7 +5,7 @@ cedo (protótipo; a visão é estender a todos os prédios municipais).
 Projeto do SmartCities Hackathon Londrina 2026 — tema: Transformação Digital na Gestão Pública.
 
 > Protótipo de software: a leitura é **simulada**, no mesmo contrato MQTT que a ESP32-CAM real usaria
-> (uma foto do mostrador do hidrômetro a cada 30 min).
+> (uma foto do mostrador do hidrômetro a cada 30 min, com bateria e painel solar — sem tomada).
 > Todos os dados e tarifas de exemplo são **simulados**.
 
 ## Acesso às plataformas
