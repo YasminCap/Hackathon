@@ -320,11 +320,13 @@ class Simulador:
         vazamento = p.cenario_vazao * random.uniform(0.95, 1.05) if p.cenario else 0.0
         return round(normal + vazamento, 2)
 
-    def passo(self) -> None:
+    def passo(self, minutos_sim: float | None = None) -> None:
         """Avança o relógio um intervalo. A água corre minuto a minuto (o hidrômetro gira),
-        mas só a cada PERIODO_LEITURA_MIN simulados a "câmera" fotografa e publica."""
+        mas só a cada PERIODO_LEITURA_MIN simulados a "câmera" fotografa e publica.
+        Sem argumento, o intervalo é o do tempo acelerado (intervalo_s × fator)."""
         with self.trava:
-            minutos_sim = self.intervalo_s * self.fator / 60
+            if minutos_sim is None:
+                minutos_sim = self.intervalo_s * self.fator / 60
             self.agora += timedelta(minutes=minutos_sim)
             # o consumo do intervalo usa a vazão do MEIO dele
             # (medir no fim jogaria uso para antes da abertura do prédio)
@@ -366,6 +368,13 @@ class Simulador:
         if hora != self._ultima_hora_logada:  # resumo uma vez por hora simulada
             self._ultima_hora_logada = hora
             print(f"[{hora}] vazão somada: {total_vazao:7.2f} L/min")
+
+    def adiantar(self, horas: float) -> None:
+        """Avança o relógio SIMULANDO o tempo do meio, em passos de 2 min: a água corre,
+        o vazamento soma litros e a "câmera" tira todas as fotos do período.
+        (Pular direto deixaria um buraco sem fotos, e o detector não juntaria a sequência.)"""
+        for _ in range(int(horas * 60 / 2)):
+            self.passo(2.0)
 
     def _salvar_totais(self) -> None:
         """Guarda o número de cada hidrômetro para continuar dele na próxima execução."""
@@ -464,8 +473,11 @@ def criar_app(sim: Simulador) -> FastAPI:
 
     @app.post("/api/pular")
     def pular(horas: float = 1.0):
-        with sim.trava:
-            sim.agora += timedelta(hours=horas)
+        """Adianta o relógio simulando o período (com todas as fotos), não pulando direto."""
+        if not 0 < horas <= 12:
+            raise HTTPException(400, "Use de 0 a 12 horas")
+        sim.adiantar(horas)
+        print(f"[RELÓGIO] Adiantado {horas:g} h (com as fotos do período)")
         return {"ok": True, "relogio": sim.agora.isoformat()}
 
     @app.post("/api/fator")
