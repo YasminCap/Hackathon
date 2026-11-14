@@ -109,8 +109,8 @@ O painel tem três abas:
 **Campo de operação:** cada alerta tem a caixa *Operação* — **Pendente** → **Informado à manutenção**
 → **Consertado**. Ao marcar *Consertado*, o alerta vai para a aba Finalizados.
 
-**Como a economia é calculada:** sem o LeakFinder, o vazamento duraria 30 dias (até a próxima conta);
-água não desperdiçada = vazão × 30 dias − o que vazou até o conserto; valor = m³ × R$ 7,00
+**Como a economia é calculada:** sem o LeakFinder, o vazamento duraria em média 15 dias até ser percebido;
+água não desperdiçada = vazão × 15 dias − o que vazou até o conserto; valor = m³ × R$ 7,00
 (tarifa média de água da Sanepar 2026, sem esgoto). Ajustável no `.env` (`DIAS_SEM_SISTEMA`, `TARIFA_RS_M3`).
 
 ## Estrutura

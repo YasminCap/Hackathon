@@ -63,9 +63,9 @@ seguinte. Com uma foto do hidrômetro a cada 30 minutos, ele é percebido em **c
 
 **Exemplo simulado (protótipo):** uma torneira esquecida aberta a 7 litros por minuto.
 
-| | Sem o sistema (descoberta na conta, ~30 dias) | Com o LeakFinder Londrina (~1h30) |
+| | Sem o sistema (percebido em ~15 dias) | Com o LeakFinder Londrina (~1h30) |
 |---|---|---|
-| Água perdida | ~302 mil litros | ~630 litros |
+| Água perdida | ~151 mil litros | ~630 litros |
 
 Em época de estiagem, essa é água que **fica no reservatório para a população**.
 

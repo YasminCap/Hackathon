@@ -114,7 +114,7 @@
 3. Litros economizados × tarifa da Sanepar = economia em R$.
 4. Relatório mensal com cada ocorrência e a foto do hidrômetro como prova.
 
-*Exemplo simulado:* uma torneira aberta de madrugada a 7 L/min perderia ~302 mil litros até a conta do mês;
+*Exemplo simulado:* uma torneira aberta de madrugada a 7 L/min perderia ~151 mil litros em 15 dias até alguém perceber;
 com o LeakFinder, perde ~630 litros.
 
 ### 6. Recursos-chave
